@@ -1,0 +1,190 @@
+.button-hover {
+    transition: all 0.2s ease;
+}
+
+.button-hover:hover {
+    transform: translateY(-1px);
+}
+
+.button-hover:active {
+    transform: translateY(1px);
+}
+
+.lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    cursor: default;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.lightbox.active {
+    opacity: 1;
+}
+
+.lightbox #lightboxInner {
+    cursor: default;
+}
+
+.lightbox #lightboxInner > * {
+    cursor: default;
+}
+
+/* Navigation und Close-Button */
+.lightbox #lightboxCloseBtn,
+.lightbox #lightboxPrev,
+.lightbox #lightboxNext {
+    cursor: pointer;
+}
+
+.lightbox img {
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+    cursor: default;
+}
+
+.lightbox.active img {
+    transform: scale(1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c7d2fe;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #818cf8;
+}
+
+/* Input focus styles */
+textarea:focus, input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    outline: none;
+}
+
+/* Dark mode transitions */
+.dark body {
+    background: linear-gradient(to bottom right, rgb(30 41 59), rgb(15 23 42));
+    color-scheme: dark;
+}
+
+html.transitioning * {
+    transition: background-color 0.5s ease, border-color 0.5s ease;
+}
+
+/* Theme toggle switch transitions */
+#themeToggle {
+    transition: background-color 0.2s ease-in-out;
+}
+
+#themeToggle span {
+    transition: transform 0.2s ease-in-out;
+}
+
+#themeToggle span span {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.image-card {
+    transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+.image-card:hover {
+    transform: scale(1.04);
+    box-shadow: 0 6px 24px 0 rgba(0,0,0,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.08);
+}
+
+html, body {
+    -webkit-font-smoothing: antialiased; /* Chrome, Safari, Opera */
+    -moz-osx-font-smoothing: grayscale;  /* Firefox auf Mac */
+    text-rendering: optimizeLegibility;
+    font-family: 'Inter', system-ui, Arial, sans-serif;
+}
+
+/* Mobile Menu Slide-in Animation */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in {
+  animation: slideInRight 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+#mobileMenu {
+  z-index: 2000;
+}
+
+#mobileMenu .bg-white, #mobileMenu .dark\:bg-slate-900 {
+  z-index: 2010;
+}
+
+@media (max-width: 640px) {
+  /* Rechte Infobox in der Lightbox auf Mobile scrollbar machen */
+  .lightbox .md\:w-\[400px\].w-full.flex.flex-col.border-t.md\:border-l.border-gray-200 {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  /* Alternativ, falls die Klasse sich ändert, gezielt das 2. Kind im flex-Layout ansprechen: */
+  .lightbox #lightboxInner > div:last-child {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
+
+/* Fix: Richtiger Cursor für Prompt und Batch-Thumbnails in der Lightbox */
+.lightbox #lightboxPrompt {
+    cursor: text;
+    user-select: text;
+}
+
+.lightbox .lightbox-batch-row img {
+    cursor: pointer !important;
+}
+
+@keyframes preview-pulse {
+    0% {
+        background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.1) 50%, transparent 100%);
+        transform: translateX(-100%);
+    }
+    100% {
+        background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.1) 50%, transparent 100%);
+        transform: translateX(100%);
+    }
+}
+
+.animate-preview-pulse {
+    animation: preview-pulse 2s ease-in-out infinite;
+}
+
+/* Dark mode animation */
+@media (prefers-color-scheme: dark) {
+    @keyframes preview-pulse {
+        0% {
+            background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.2) 50%, transparent 100%);
+            transform: translateX(-100%);
+        }
+        100% {
+            background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.2) 50%, transparent 100%);
+            transform: translateX(100%);
+        }
+    }
+} 

@@ -1,0 +1,13 @@
+Options -Indexes
+
+<FilesMatch "\.(htaccess|htpasswd|env|ini|phps|fla|psd|log|sh|bak|)$">
+    Deny from all
+</FilesMatch>
+
+<Files ~ "^[a-z]{2}\.json$">
+    Allow from all
+</Files>
+
+<FilesMatch "\.(js|html)$">
+    Header set Cache-Control "max-age=60, public"
+</FilesMatch>

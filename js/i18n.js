@@ -20,7 +20,7 @@ async function loadTranslations(lang) {
 async function initI18n() {
     try {
         // Load customization settings to get language
-        const customResponse = await fetch('./database/customization.json');
+        const customResponse = await fetch('./php/get_customization.php');
         if (!customResponse.ok) throw new Error('Failed to load customization');
         const customization = await customResponse.json();
         

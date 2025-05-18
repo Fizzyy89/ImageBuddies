@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Customization-Text-Loader
-    fetch('./database/customization.json')
+    fetch('./php/get_customization.php')
       .then(res => res.json())
       .then(data => {
         // Einfache Platzhalter

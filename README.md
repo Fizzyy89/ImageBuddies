@@ -64,29 +64,35 @@ The core idea is to provide a shared, self-managed platform for creative image g
     * Image metadata and basic statistics are logged to CSV files in the `database` directory.
     * The OpenAI API key is stored in a `.env` file within the `database` directory.
 
-## ⚠️ Security Notice:
-This software is primarily designed for controlled environments such as internal networks or secured servers. If you plan to deploy it on a public web server, please note:
+## ⚠️ Security Notice
 
-- The /database directory contains sensitive data, including the OpenAI API key in the .env file
-- Securing this data is crucial and falls under your responsibility
-- Proper security expertise is required for public deployment
-- Enhanced security features are currently under development to make the software more secure for public servers out-of-the-box
+ImageBuddies is primarily designed for use in **controlled environments**, such as internal networks, personal servers, or among trusted groups. The default setup, with the `/database` directory located within the web root, prioritizes ease of installation.
+
+If you choose to deploy ImageBuddies on a **publicly accessible web server**, please be aware of the following:
+
+* **Sensitive Data:** The `/database` directory contains sensitive data, most notably the OpenAI API key (in the `.env` file).
+* **Apache Web Server Protection:** An `.htaccess` file is included within the `/database` directory. This file is intended to block direct web access to the directory's contents **when using an Apache web server**. Ensure your Apache server is configured to allow `.htaccess` files (e.g., `AllowOverride All`).
+* **Other Web Servers (Nginx, IIS, etc.):** The included `.htaccess` file **will not provide protection** on web servers other than Apache. If you are using Nginx, IIS, or another server type, you **must manually configure your server** to prevent direct web access to the `/database` directory. Consult your web server's documentation for instructions (e.g., search "deny access to folder nginx" or "request filtering iis").
+* **Your Responsibility:** Ultimately, securing the `/database` directory and your server configuration is **your responsibility**, especially in a public-facing environment. Failure to do so can expose sensitive information.
+
+Future versions may include more robust out-of-the-box security for public deployments.
 
 ## 🔧 Getting Started
 
-1.  **Download**: Clone or download the repository.
-2.  **Upload**: Upload the files to your webspace that supports PHP.
-3.  **Setup**:
+1.  **Read** the Security Notice above.
+2.  **Download**: Clone the repository or download the release zip-file.
+3.  **Upload**: Upload the files to your webspace that supports PHP.
+4.  **Setup**:
     * Navigate to the application in your web browser.
     * You will be guided through a one-time setup process to:
         * Create an admin user account.
         * Enter your OpenAI API key.
         * Configure basic site settings (like enabling/disabling view-only mode).
-4.  **Login**: Log in with your newly created admin credentials.
-5.  **Manage (Optional)**:
+5.  **Login**: Log in with your newly created admin credentials.
+6.  **Manage (Optional)**:
     * Use the "Users" section (admin-only) to add more users.
     * Use the "Customization" section (admin-only) to personalize the UI texts, features, and other settings.
-6.  **Generate!**: Start generating images.
+7.  **Generate!**: Start generating images.
 
 ## 🔄 Performing an Update
 

@@ -297,7 +297,7 @@ export function initCustomization() {
     loadCustomization(featuresContainer);
    
     // Apply initial header visibility
-    fetch('./database/customization.json')
+    fetch('./php/get_customization.php')
         .then(response => response.json())
         .then(data => {
             updateHeaderVisibility(data.hideHeader || false, true);
@@ -313,7 +313,7 @@ export function initCustomization() {
 // Lade aktuelle Customization
 async function loadCustomization(featuresContainer) {
     try {
-        const response = await fetch('./database/customization.json');
+        const response = await fetch('./php/get_customization.php');
         const data = await response.json();
         currentCustomization = data;
 

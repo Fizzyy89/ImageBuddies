@@ -1,5 +1,12 @@
 import { translate } from './i18n.js';
 
+function validatePassword(password) {
+    if (password.length < 8) {
+        return { valid: false, error_key: 'error.password.tooShort' };
+    }
+    return { valid: true };
+}
+
 export function initUserProfile() {
     const userMenuBtn = document.getElementById('userMenuBtn');
     const userDropdown = document.getElementById('userDropdown');
@@ -81,6 +88,14 @@ export function initUserProfile() {
             // Validierung
             if (newPassword !== confirmPassword) {
                 passwordError.textContent = translate('error.passwordsDoNotMatch');
+                passwordError.classList.remove('hidden');
+                return;
+            }
+
+            // Validiere Passwortlänge
+            const validation = validatePassword(newPassword);
+            if (!validation.valid) {
+                passwordError.textContent = translate(validation.error_key);
                 passwordError.classList.remove('hidden');
                 return;
             }

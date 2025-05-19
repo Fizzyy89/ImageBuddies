@@ -1,20 +1,26 @@
-# 🎨 ImageBuddies - Self-Hosted OpenAI Image Generation UI
+# ImageBuddies - Self-Hosted OpenAI Image Generation UI
 
 ImageBuddies is a user-friendly web interface that allows groups of friends or small teams to easily generate images using OpenAI's latest `gpt-image-1` image generation model. It's designed to be self-hosted on any webspace with PHP support, requiring no complex backend setup or databases.
+
+![generate](https://github.com/user-attachments/assets/6f77748c-f461-4e94-8f2c-a0aa513ac18d)
 
 The core idea is to provide a shared, self-managed platform for creative image generation, where an administrator can manage users and the OpenAI API key, and users can generate, view, and share images.
 
 ## ✨ Key Features
 
-* **🚀 Easy to Host**: No database needed! Simply deploy on a web server with PHP.
+* **🚀 Easy to Host**:
+    * No database needed! Simply deploy on any web server with PHP.
+
 * **🤖 OpenAI Integration**:
     * Generate images using OpenAI's image generation models (e.g., `gpt-image-1`).
     * Edit existing images using prompts.
     * Automatic prompt optimization feature using GPT.
+ 
 * **👥 User Management**:
     * Admin interface for managing users (add, edit roles, change passwords, delete).
     * User roles (admin, user).
     * Secure login system.
+ 
 * **🖼️ Image Generation & Customization**:
     * Intuitive interface for entering prompts.
     * Support for reference images (upload, paste, drag & drop - up to 8).
@@ -22,6 +28,7 @@ The core idea is to provide a shared, self-managed platform for creative image g
     * Choose image quality (low, medium, high - with associated cost display).
     * Generate multiple image variations (1-4 images per request).
     * Dynamic cost estimation before generation.
+ 
 * **📸 Gallery & Image Viewing**:
     * Gallery of all generated images (with thumbnails).
     * Filter gallery to show "all images" or "my images".
@@ -31,17 +38,22 @@ The core idea is to provide a shared, self-managed platform for creative image g
     * Download individual images or entire batches as a ZIP.
     * Easily copy image URLs or reuse prompts and settings.
     * Set any image in a batch as the new "main" thumbnail for the gallery.
+
+![lightbox](https://github.com/user-attachments/assets/38310bd5-6f84-4599-9463-2e7f8031bfd2)
+
 * **⚙️ Customization & Admin Controls**:
     * **Site Customization**: Admins can customize site name, headlines, features list, footer, and login contact information.
     * **API Key Management**: Securely manage the OpenAI API key via the admin interface.
     * **View-Only Mode**: Option to allow a "view-only" mode for users without login, if enabled by the admin.
     * **Header Visibility**: Admin can choose to hide the main hero/header section.
+   
 * **📊 Usage Statistics (Admin-only)**:
     * Track total images generated, total costs, average cost per image.
     * View distributions by quality, aspect ratio, and user.
     * See costs per month and images/costs per day.
     * Analyze reference image usage and associated costs.
     * View statistics on batch generation sizes.
+      
 * **💫 Modern UI**:
     * Clean, responsive design built with Tailwind CSS.
     * Dark/Light mode support.
@@ -53,6 +65,8 @@ The core idea is to provide a shared, self-managed platform for creative image g
 * **Friend Groups**: Share an API key and generate images together without everyone needing an OpenAI account or technical setup.
 * **Small Teams**: Collaborate on visual projects, brainstorm ideas, or create assets.
 * **Individuals**: A personal, self-hosted alternative to other image generation UIs.
+
+![gallery](https://github.com/user-attachments/assets/32691f10-2f1a-4a21-b238-c400199b3703)
 
 ## 🔧 Technical Overview
 

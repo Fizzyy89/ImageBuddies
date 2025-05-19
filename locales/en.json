@@ -306,5 +306,6 @@
     "prompt.newUsernameForUser.suffix": ":",
     "notification.userRenameSuccess": "User renamed successfully",
     "error.userRenameFailed": "Error renaming user",
-    "error.userManagement.rename.userExists": "A user with this name already exists"
+    "error.userManagement.rename.userExists": "A user with this name already exists",
+    "error.password.tooShort": "Password must be at least 8 characters long"
 }

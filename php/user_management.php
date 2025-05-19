@@ -2,6 +2,8 @@
 session_start();
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/password_validation.php';
+
 // Prüfe Admin-Berechtigung
 if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
@@ -41,6 +43,14 @@ switch ($action) {
             exit;
         }
 
+        // Validiere das Passwort
+        $validation = validatePassword($password);
+        if (!$validation['valid']) {
+            http_response_code(400);
+            echo json_encode(['error_key' => $validation['error_key']]);
+            exit;
+        }
+
         if (isset($users[$username])) {
             http_response_code(400);
             echo json_encode(['error_key' => 'error.userManagement.add.userExists']);
@@ -69,6 +79,13 @@ switch ($action) {
         }
 
         if (!empty($newPassword)) {
+            // Validiere das neue Passwort
+            $validation = validatePassword($newPassword);
+            if (!$validation['valid']) {
+                http_response_code(400);
+                echo json_encode(['error_key' => $validation['error_key']]);
+                exit;
+            }
             $users[$username]['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
         }
         

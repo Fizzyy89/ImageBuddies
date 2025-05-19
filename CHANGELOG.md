@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] - 2024-03-21
+## [0.3.2] - upcoming
+
+### Security
+- Implemented minimum password length requirement (8 characters) for all password fields:
+  - Initial setup
+  - Password changes
+  - User creation
+  - Password resets
+- Added client-side and server-side validation for password requirements
+- Added translated error messages for password validation
+
+## [0.3.1] - 2025-05-18
 
 ### Security
 - Added secure PHP proxy for accessing customization data

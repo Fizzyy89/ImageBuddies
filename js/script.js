@@ -540,6 +540,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 language: document.getElementById('setupLanguage').value
             };
 
+            // Validiere Passwortlänge
+            const validation = validatePassword(formData.password);
+            if (!validation.valid) {
+                setupError.textContent = translate(validation.error_key);
+                setupError.classList.remove('hidden');
+                return;
+            }
+
             try {
                 const response = await fetch('php/setup.php', {
                     method: 'POST',
@@ -560,4 +568,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-}); 
+
+    // Add user form handling
+    if (document.getElementById('addUserForm')) {
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+
+            // Validiere Passwortlänge
+            const validation = validatePassword(password);
+            if (!validation.valid) {
+                showNotification(translate(validation.error_key), 'error');
+                return;
+            }
+
+            // ... existing code ...
+        });
+    }
+});
+
+function validatePassword(password) {
+    if (password.length < 8) {
+        return { valid: false, error_key: 'error.password.tooShort' };
+    }
+    return { valid: true };
+} 

@@ -2,6 +2,8 @@
 session_start();
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/password_validation.php';
+
 // Prüfe ob User eingeloggt ist
 if (!isset($_SESSION['user'])) {
     http_response_code(403);
@@ -16,6 +18,14 @@ $newPassword = $data['newPassword'] ?? '';
 if (empty($currentPassword) || empty($newPassword)) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.allFieldsRequired']);
+    exit;
+}
+
+// Validiere das neue Passwort
+$validation = validatePassword($newPassword);
+if (!$validation['valid']) {
+    http_response_code(400);
+    echo json_encode(['error_key' => $validation['error_key']]);
     exit;
 }
 

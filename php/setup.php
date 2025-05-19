@@ -1,6 +1,8 @@
 <?php
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/password_validation.php';
+
 $dbPath = __DIR__ . '/../database';
 $usersFile = $dbPath . '/users.json';
 $customizationFile = $dbPath . '/customization.json';
@@ -40,6 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($data['password'] !== $data['passwordConfirm']) {
         http_response_code(400);
         echo json_encode(['error_key' => 'error.setup.passwordsMismatch']);
+        exit;
+    }
+
+    // Validate password length
+    $validation = validatePassword($data['password']);
+    if (!$validation['valid']) {
+        http_response_code(400);
+        echo json_encode(['error_key' => $validation['error_key']]);
         exit;
     }
 

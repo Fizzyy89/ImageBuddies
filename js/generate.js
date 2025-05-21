@@ -1,4 +1,5 @@
 import { translate } from './i18n.js';
+import { galleryImages, allImages } from './gallery.js';
 // Bildgenerierungs- und Vorschau-Modul
 // Verantwortlich für das Generieren, Anzeigen und Herunterladen von Bildern
 
@@ -196,8 +197,10 @@ export async function generateImage({
 
             // Reload gallery and setup click handlers
             await loadImageGrid();
-            if (galleryImages.length > 0) {
-                const latestImages = galleryImages.slice(0, selectedCount);
+            const latestGalleryImages = [...galleryImages];
+            const latestAllImages = [...allImages];
+            if (latestGalleryImages.length > 0) {
+                const latestImages = latestGalleryImages.slice(0, selectedCount);
                 if (selectedCount === 1) {
                     downloadBtn.onclick = () => downloadImage(latestImages[0].file, prompt || 'generated_image');
                 } else {
@@ -208,7 +211,7 @@ export async function generateImage({
                             img.onclick = () => {
                                 const batchId = latestImages[0].batchId;
                                 const imageNumber = idx + 1;
-                                const batchImage = allImages.find(img => 
+                                const batchImage = latestAllImages.find(img => 
                                     img.batchId === batchId && 
                                     parseInt(img.imageNumber) === imageNumber
                                 );

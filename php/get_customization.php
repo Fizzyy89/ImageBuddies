@@ -4,13 +4,6 @@ header('Content-Type: application/json');
 // Start session and check authentication
 session_start();
 
-// Allow access for logged-in users and view-only mode
-if (!isset($_SESSION['user']) && !isset($_SESSION['view_only'])) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Not authorized']);
-    exit;
-}
-
 // Path to the customization.json file
 $file_path = '../database/customization.json';
 

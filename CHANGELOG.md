@@ -8,12 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.3] - 2025-05-20 NOT YET RELEASED
 
 ### Changed
+- Enhanced gallery grid size control:
+  - Replaced binary size toggle with 5-step slider control
+  - Added very compact, compact, medium, large, and very large grid layouts
+  - Set large layout (4) as new default
+  - Added persistent grid size storage in browser's localStorage
+  - Added translations for all grid size labels
 - Improved mobile UI by making variant selection buttons more compact on small screens:
   - Hid variant count text on mobile devices while keeping icons visible
   - Prevented buttons from overflowing on narrow screens
   - Maintained full button text on desktop/tablet views
 
 ### Fixed
+- Fixed error that caused customization file to not be loaded properly when logged out
 - Fixed missing metadata (including private/public toggle) in lightbox when first clicking on batch-generated images:
   - Ensured proper synchronization of gallery data after image generation
   - Metadata now correctly displays on first click for all batch images

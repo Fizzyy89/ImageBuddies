@@ -5,42 +5,69 @@ import { translatePage, translate } from './i18n.js';
 export let galleryImages = [];
 export let allImages = [];
 export let showOnlyUserImages = false;
-export let isCompactGrid = false;
+export let gridSize = localStorage.getItem('gridSize') ? parseInt(localStorage.getItem('gridSize')) : 4; // Default große Größe (1-5)
 
-export function updateGridSizeUI(gridNormalBtn, gridCompactBtn, isCompactGrid) {
-    gridNormalBtn.classList.toggle('bg-indigo-50', !isCompactGrid);
-    gridNormalBtn.classList.toggle('dark:bg-indigo-500/10', !isCompactGrid);
-    gridNormalBtn.classList.toggle('text-indigo-600', !isCompactGrid);
-    gridNormalBtn.classList.toggle('dark:text-indigo-400', !isCompactGrid);
-    gridNormalBtn.classList.toggle('text-gray-600', isCompactGrid);
-    gridNormalBtn.classList.toggle('dark:text-gray-400', isCompactGrid);
-    gridNormalBtn.classList.toggle('hover:bg-gray-50', isCompactGrid);
-    gridNormalBtn.classList.toggle('dark:hover:bg-slate-700', isCompactGrid);
-
-    gridCompactBtn.classList.toggle('bg-indigo-50', isCompactGrid);
-    gridCompactBtn.classList.toggle('dark:bg-indigo-500/10', isCompactGrid);
-    gridCompactBtn.classList.toggle('text-indigo-600', isCompactGrid);
-    gridCompactBtn.classList.toggle('dark:text-indigo-400', isCompactGrid);
-    gridCompactBtn.classList.toggle('text-gray-600', !isCompactGrid);
-    gridCompactBtn.classList.toggle('dark:text-gray-400', !isCompactGrid);
-    gridCompactBtn.classList.toggle('hover:bg-gray-50', !isCompactGrid);
-    gridCompactBtn.classList.toggle('dark:hover:bg-slate-700', !isCompactGrid);
-}
-
-export function updateGridLayout(imageGrid, isCompactGrid) {
-    if (isCompactGrid) {
-        imageGrid.classList.remove('grid-cols-2', 'sm:grid-cols-3', 'md:grid-cols-4', 'lg:grid-cols-5');
-        imageGrid.classList.add('grid-cols-3', 'sm:grid-cols-5', 'md:grid-cols-8', 'lg:grid-cols-10');
-    } else {
-        imageGrid.classList.remove('grid-cols-3', 'sm:grid-cols-5', 'md:grid-cols-8', 'lg:grid-cols-10');
-        imageGrid.classList.add('grid-cols-2', 'sm:grid-cols-3', 'md:grid-cols-4', 'lg:grid-cols-5');
+const gridLayouts = {
+    1: { // Sehr kompakt
+        base: 'grid-cols-4',
+        sm: 'sm:grid-cols-6',
+        md: 'md:grid-cols-10',
+        lg: 'lg:grid-cols-12'
+    },
+    2: { // Kompakt
+        base: 'grid-cols-3',
+        sm: 'sm:grid-cols-5',
+        md: 'md:grid-cols-8',
+        lg: 'lg:grid-cols-10'
+    },
+    3: { // Medium
+        base: 'grid-cols-2',
+        sm: 'sm:grid-cols-4',
+        md: 'md:grid-cols-6',
+        lg: 'lg:grid-cols-8'
+    },
+    4: { // Groß
+        base: 'grid-cols-2',
+        sm: 'sm:grid-cols-3',
+        md: 'md:grid-cols-4',
+        lg: 'lg:grid-cols-6'
+    },
+    5: { // Sehr groß
+        base: 'grid-cols-1',
+        sm: 'sm:grid-cols-2',
+        md: 'md:grid-cols-3',
+        lg: 'lg:grid-cols-4'
     }
+};
+
+export function updateGridLayout(imageGrid, size) {
+    // Entferne alle möglichen Grid-Klassen
+    Object.values(gridLayouts).forEach(layout => {
+        imageGrid.classList.remove(
+            layout.base,
+            layout.sm,
+            layout.md,
+            layout.lg
+        );
+    });
+
+    // Füge die neuen Grid-Klassen hinzu
+    const newLayout = gridLayouts[size];
+    imageGrid.classList.add(
+        newLayout.base,
+        newLayout.sm,
+        newLayout.md,
+        newLayout.lg
+    );
 }
 
 export function setShowOnlyUserImages(val) { showOnlyUserImages = val; }
 export function getShowOnlyUserImages() { return showOnlyUserImages; }
-export function setIsCompactGrid(val) { isCompactGrid = val; }
-export function getIsCompactGrid() { return isCompactGrid; }
+export function setGridSize(val) { 
+    gridSize = val;
+    localStorage.setItem('gridSize', val.toString());
+}
+export function getGridSize() { return gridSize; }
 
 export async function loadImageGrid({
     imageGrid,
@@ -72,7 +99,7 @@ export async function loadImageGrid({
         if (!res.ok) return;
         const files = await res.json();
         imageGrid.innerHTML = '';
-        updateGridLayout(imageGrid, isCompactGrid);
+        updateGridLayout(imageGrid, gridSize);
         let filteredFiles = files;
         filteredFiles = files.filter(file => {
             if (file.private === '1') {

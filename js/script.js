@@ -2,7 +2,7 @@ import { initAuth, checkLogin, setUserUI, showLogin, hideLogin } from './auth.js
 import { initTheme, toggleTheme, syncMobileThemeToggle } from './theme.js';
 import { initPromptHandlers, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles } from './prompt.js';
 import { generateImage, downloadImage } from './generate.js';
-import { galleryImages, allImages, showOnlyUserImages, isCompactGrid, updateGridSizeUI, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setIsCompactGrid, getIsCompactGrid } from './gallery.js';
+import { galleryImages, allImages, showOnlyUserImages, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setGridSize, getGridSize } from './gallery.js';
 import { initLightbox } from './lightbox.js';
 import { initStatistics } from './statistics.js';
 import { initUserManagement } from './user_management.js';
@@ -323,7 +323,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             showAllBtn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-50', 'dark:hover:bg-slate-700');
             showMineBtn.classList.remove('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
             showMineBtn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-50', 'dark:hover:bg-slate-700');
-            updateGridSizeUI(gridNormalBtn, gridCompactBtn, getIsCompactGrid());
             loadImageGrid({ imageGrid, isAdmin, userName, updateGridLayout, setGalleryImages });
         });
         showMineBtn.addEventListener('click', () => {
@@ -334,24 +333,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             showMineBtn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-50', 'dark:hover:bg-slate-700');
             showAllBtn.classList.remove('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
             showAllBtn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-50', 'dark:hover:bg-slate-700');
-            updateGridSizeUI(gridNormalBtn, gridCompactBtn, getIsCompactGrid());
             loadImageGrid({ imageGrid, isAdmin, userName, updateGridLayout, setGalleryImages });
         });
     }
 
-    // Toggle-Buttons für Grid-Größe
-    if (gridNormalBtn && gridCompactBtn) {
-        gridNormalBtn.addEventListener('click', () => {
-            if (!getIsCompactGrid()) return;
-            setIsCompactGrid(false);
-            updateGridSizeUI(gridNormalBtn, gridCompactBtn, getIsCompactGrid());
-            updateGridLayout(imageGrid, getIsCompactGrid());
-        });
-        gridCompactBtn.addEventListener('click', () => {
-            if (getIsCompactGrid()) return;
-            setIsCompactGrid(true);
-            updateGridSizeUI(gridNormalBtn, gridCompactBtn, getIsCompactGrid());
-            updateGridLayout(imageGrid, getIsCompactGrid());
+    // Grid-Größen-Slider
+    const gridSizeSlider = document.getElementById('gridSizeSlider');
+    if (gridSizeSlider) {
+        gridSizeSlider.value = getGridSize();
+        gridSizeSlider.addEventListener('input', () => {
+            const size = parseInt(gridSizeSlider.value);
+            setGridSize(size);
+            updateGridLayout(imageGrid, size);
         });
     }
 

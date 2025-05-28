@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.3] - 2025-05-20 NOT YET RELEASED
 
+### Added
+- New admin-only private images toggle feature in gallery:
+  - Added "P" button in gallery header for administrators only
+  - Allows admins to toggle visibility of other users' private images
+  - Own private images are always visible regardless of toggle state
+  - Button is enabled by default and persists state in localStorage
+  - Visual feedback with eye/crossed-eye icons and color changes
+- User statistics info badge in header:
+  - Shows total number of images created by the logged-in user
+  - Displays total cost in local currency (€ for German, $ for English)
+  - Positioned next to username in desktop header
+  - Auto-updates after new image generation
+  - Supports localization with singular/plural forms
+  - Hidden when user is not logged in or in view-only mode
+
 ### Changed
 - Enhanced gallery grid size control:
   - Replaced binary size toggle with 5-step slider control

@@ -6,6 +6,7 @@ export let galleryImages = [];
 export let allImages = [];
 export let showOnlyUserImages = false;
 export let gridSize = localStorage.getItem('gridSize') ? parseInt(localStorage.getItem('gridSize')) : 4; // Default große Größe (1-5)
+export let showAdminPrivateImages = localStorage.getItem('showAdminPrivateImages') !== 'false'; // Default aktiviert
 
 const gridLayouts = {
     1: { // Sehr kompakt
@@ -68,6 +69,11 @@ export function setGridSize(val) {
     localStorage.setItem('gridSize', val.toString());
 }
 export function getGridSize() { return gridSize; }
+export function setShowAdminPrivateImages(val) { 
+    showAdminPrivateImages = val;
+    localStorage.setItem('showAdminPrivateImages', val.toString());
+}
+export function getShowAdminPrivateImages() { return showAdminPrivateImages; }
 
 export async function loadImageGrid({
     imageGrid,
@@ -103,7 +109,12 @@ export async function loadImageGrid({
         let filteredFiles = files;
         filteredFiles = files.filter(file => {
             if (file.private === '1') {
-                return file.user === currentUser || admin;
+                // Eigene private Bilder werden immer angezeigt
+                if (file.user === currentUser) {
+                    return true;
+                }
+                // Private Bilder anderer Nutzer nur anzeigen wenn Admin UND showAdminPrivateImages aktiviert ist
+                return admin && showAdminPrivateImages;
             }
             return true;
         });

@@ -2,7 +2,7 @@ import { initAuth, checkLogin, setUserUI, showLogin, hideLogin } from './auth.js
 import { initTheme, toggleTheme, syncMobileThemeToggle } from './theme.js';
 import { initPromptHandlers, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles } from './prompt.js';
 import { generateImage, downloadImage } from './generate.js';
-import { galleryImages, allImages, showOnlyUserImages, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setGridSize, getGridSize } from './gallery.js';
+import { galleryImages, allImages, showOnlyUserImages, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setGridSize, getGridSize, setShowAdminPrivateImages, getShowAdminPrivateImages } from './gallery.js';
 import { initLightbox } from './lightbox.js';
 import { initStatistics } from './statistics.js';
 import { initUserManagement } from './user_management.js';
@@ -10,6 +10,7 @@ import { initUserProfile } from './user_profile.js';
 import { initCustomization } from './customization.js';
 import { checkSetupRequired, showSetup } from './auth.js';
 import { initI18n, translate } from './i18n.js';
+import { initUserInfo } from './userInfo.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Check if setup is required first
@@ -21,6 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize i18n after confirming setup is complete
     await initI18n();
+    
+    // Initialize user info badge
+    initUserInfo();
 
     // DOM Elements
     const generateBtn = document.getElementById('generateBtn');
@@ -68,9 +72,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lightboxDownloadBtn = document.getElementById('lightboxDownloadBtn');
     const lightboxOpenNewTabBtn = document.getElementById('lightboxOpenNewTabBtn');
     const lightboxCopyUrlBtn = document.getElementById('lightboxCopyUrlBtn');
+    const deleteImageBtn = document.getElementById('deleteImageBtn');
     // Privat-Checkbox
     const privateCheckboxContainer = document.getElementById('privateCheckboxContainer');
     const privateCheckbox = document.getElementById('privateCheckbox');
+    // Admin Private Images Toggle
+    const adminPrivateToggle = document.getElementById('adminPrivateToggle');
+    const adminPrivateBtn = document.getElementById('adminPrivateBtn');
     // --- Mobile Menu Elements ---
     const mobileMenuButton = document.getElementById('mobileMenuButton');
     const mobileMenu = document.getElementById('mobileMenu');
@@ -133,6 +141,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Call admin check on load
     (async () => {
         await checkAdminStatus();
+        
+        // Admin-Private-Button für Admins anzeigen und Event-Handler hinzufügen
+        if (isAdmin && adminPrivateToggle && adminPrivateBtn) {
+            adminPrivateToggle.classList.remove('hidden');
+            
+            // Button-Zustand initial setzen
+            updateAdminPrivateButtonState();
+            
+            // Event-Handler für Admin-Private-Button
+            adminPrivateBtn.addEventListener('click', () => {
+                const newState = !getShowAdminPrivateImages();
+                setShowAdminPrivateImages(newState);
+                updateAdminPrivateButtonState();
+                // Gallery neu laden
+                loadImageGrid({ imageGrid, isAdmin, userName, updateGridLayout, setGalleryImages });
+            });
+        }
+        
         // Lightbox initialisieren erst nach Admin-Check
         initLightbox({
             lightbox,
@@ -160,6 +186,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             isAdmin
         });
     })();
+
+    // Funktion zum Aktualisieren des Admin-Private-Button-Zustands
+    function updateAdminPrivateButtonState() {
+        if (!adminPrivateBtn) return;
+        
+        const isActive = getShowAdminPrivateImages();
+        const icon = adminPrivateBtn.querySelector('svg path');
+        
+        if (isActive) {
+            // Aktiviert - normales Auge-Icon
+            adminPrivateBtn.classList.add('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
+            adminPrivateBtn.classList.remove('bg-gray-50', 'dark:bg-gray-700', 'text-gray-500', 'dark:text-gray-400');
+            adminPrivateBtn.title = translate('gallery.admin.privateToggle.hide');
+            if (icon) {
+                icon.setAttribute('d', 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z M15 12a3 3 0 11-6 0 3 3 0 016 0z');
+            }
+        } else {
+            // Deaktiviert - durchgestrichenes Auge-Icon
+            adminPrivateBtn.classList.remove('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
+            adminPrivateBtn.classList.add('bg-gray-50', 'dark:bg-gray-700', 'text-gray-500', 'dark:text-gray-400');
+            adminPrivateBtn.title = translate('gallery.admin.privateToggle.show');
+            if (icon) {
+                icon.setAttribute('d', 'M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-10.5-7.5a10.05 10.05 0 012.908-4.568m2.32-1.872A9.956 9.956 0 0112 5c5 0 9.27 3.11 10.5 7.5a9.956 9.956 0 01-4.293 5.568M3 3l18 18');
+            }
+        }
+    }
 
     // Prompt-Optimierung initialisieren
     initPromptHandlers({

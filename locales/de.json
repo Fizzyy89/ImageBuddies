@@ -46,6 +46,8 @@
     "gallery.layout.size": "Rastergröße",
     "gallery.filter.all": "Alle Bilder",
     "gallery.filter.mine": "Meine Bilder",
+    "gallery.admin.privateToggle.show": "Private Bilder anderer Nutzer anzeigen",
+    "gallery.admin.privateToggle.hide": "Private Bilder anderer Nutzer ausblenden",
     "gallery.imageCountUnit": "Bilder",
     "gallery.noUserImages": "Du hast noch keine Bilder generiert.",
     "gallery.noImages": "Noch keine Bilder generiert.",
@@ -311,5 +313,9 @@
     "notification.userRenameSuccess": "Benutzer erfolgreich umbenannt",
     "error.userRenameFailed": "Fehler beim Umbenennen des Benutzers",
     "error.userManagement.rename.userExists": "Ein Benutzer mit diesem Namen existiert bereits",
-    "error.password.tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein"
+    "error.password.tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+    "userInfo.badge.imagesSingular": "Du hast 1 Bild erstellt.",
+    "userInfo.badge.imagesPlural": "Du hast {count} Bilder erstellt.",
+    "userInfo.badge.withCost": ", Gesamtkosten: ca. {cost} €",
+    "userInfo.badge.loadingError": "Fehler beim Laden der Benutzerstatistiken"
 }

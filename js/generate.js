@@ -1,5 +1,6 @@
 import { translate } from './i18n.js';
 import { galleryImages, allImages } from './gallery.js';
+import { refreshUserStats } from './userInfo.js';
 // Bildgenerierungs- und Vorschau-Modul
 // Verantwortlich für das Generieren, Anzeigen und Herunterladen von Bildern
 
@@ -227,6 +228,9 @@ export async function generateImage({
                 if (placeholderText) placeholderText.classList.add('hidden');
                 if (downloadBtn) downloadBtn.classList.remove('hidden');
                 if (previewPulse) previewPulse.classList.add('hidden');
+                
+                // Refresh user statistics after successful generation
+                refreshUserStats();
             }
         } else {
             if (errorMessageText) errorMessageText.textContent = translate('error.noB64Json');

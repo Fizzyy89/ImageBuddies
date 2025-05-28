@@ -46,6 +46,8 @@
     "gallery.layout.size": "Grid Size",
     "gallery.filter.all": "All Images",
     "gallery.filter.mine": "My Images",
+    "gallery.admin.privateToggle.show": "Show other users' private images",
+    "gallery.admin.privateToggle.hide": "Hide other users' private images",
     "gallery.imageCountUnit": "Images",
     "gallery.noUserImages": "You haven't generated any images yet.",
     "gallery.noImages": "No images generated yet.",
@@ -311,5 +313,9 @@
     "notification.userRenameSuccess": "User renamed successfully",
     "error.userRenameFailed": "Error renaming user",
     "error.userManagement.rename.userExists": "A user with this name already exists",
-    "error.password.tooShort": "Password must be at least 8 characters long"
+    "error.password.tooShort": "Password must be at least 8 characters long",
+    "userInfo.badge.imagesSingular": "You have created 1 image.",
+    "userInfo.badge.imagesPlural": "You have created {count} images.",
+    "userInfo.badge.withCost": ", total cost: ~ {cost} $",
+    "userInfo.badge.loadingError": "Error loading user statistics"
 }

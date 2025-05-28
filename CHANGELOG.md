@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.3] - 2025-05-20 NOT YET RELEASED
+## [0.4.0] - 2025-05-28
 
 ### Added
 - New admin-only private images toggle feature in gallery:
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Visual feedback with eye/crossed-eye icons and color changes
 - User statistics info badge in header:
   - Shows total number of images created by the logged-in user
-  - Displays total cost in local currency (€ for German, $ for English)
+  - Displays total cost in local currency
   - Positioned next to username in desktop header
   - Auto-updates after new image generation
   - Supports localization with singular/plural forms

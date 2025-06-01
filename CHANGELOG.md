@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - NOT YET RELEASED
+
+### Added
+- New "Surprise me" button:
+  - Added compact button with gradient design next to reference image controls
+  - Generates random, creative image prompts using AI
+  - Supports localization for button tooltip and generated prompts
+  - Visual feedback with loading spinner during generation
+- New "cost per user" statistic
+
+### Fixed
+- Fixed reference image cost inconsistency between frontend and backend:
+  - Updated frontend calculation from 4 cents to 3 cents per reference image
+  - Now matches backend pricing used in statistics and user calculations
+  - Ensures consistent cost display across the entire application
+
 ## [0.4.0] - 2025-05-28
 
 ### Added

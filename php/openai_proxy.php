@@ -74,10 +74,32 @@ if ($endpoint === 'generations') {
     $body = json_encode([
         'model' => 'gpt-4.1-mini',
         'messages' => [
-            ['role' => 'system', 'content' => 'Du bist ein Prompt-Optimierer für KI-Bildgeneratoren. Formuliere den folgenden Prompt so um, dass er möglichst klar, präzise und bildgenerierend ist. Gib nur den optimierten Prompt zurück. Sorge dafür, dass alle Prompts zu meisterhaften Ergebnissen führen.'],
+            ['role' => 'system', 'content' => 'You are a prompt optimizer for AI image generators. Rephrase the following prompt to make it as clear, precise and image-generating as possible. Only return the optimized prompt. Add creativity and ensure all prompts lead to masterful results. Write the optimized prompt in the language of the user input.'],
             ['role' => 'user', 'content' => $data['prompt']]
         ],
-        'max_tokens' => 400
+        'max_tokens' => 400,
+        'temperature' => 0.7
+    ]);
+} elseif ($endpoint === 'random') {
+    $url = 'https://api.openai.com/v1/chat/completions';
+    $headers = [
+        'Authorization: Bearer ' . $OPENAI_KEY,
+        'Content-Type: application/json'
+    ];
+    $data = json_decode(file_get_contents('php://input'), true);
+    if (!isset($data['prompt'])) {
+        http_response_code(400);
+        echo json_encode(['error_key' => 'error.proxy.missingPrompt']);
+        exit;
+    }
+    $body = json_encode([
+        'model' => 'gpt-4.1-mini',
+        'messages' => [
+            ['role' => 'system', 'content' => 'You are a creative prompt generator for AI image generation. Create an, interesting, and detailed prompt for image generation. You may discard elements of the user prompt if they don\t fit together and write a better alternative. Only return the generated prompt.'],
+            ['role' => 'user', 'content' => $data['prompt']]
+        ],
+        'max_tokens' => 400,
+        'temperature' => 1.2
     ]);
 } else {
     http_response_code(400);
@@ -126,6 +148,13 @@ if ($endpoint === 'optimize') {
     $data = json_decode($response, true);
     $optimized = $data['choices'][0]['message']['content'] ?? null;
     echo json_encode(['optimizedPrompt' => trim($optimized)]);
+    exit;
+}
+
+if ($endpoint === 'random') {
+    $data = json_decode($response, true);
+    $randomPrompt = $data['choices'][0]['message']['content'] ?? null;
+    echo json_encode(['randomPrompt' => trim($randomPrompt)]);
     exit;
 }
 

@@ -645,6 +645,109 @@ export function initLightbox({
             copyPromptBtn.classList.add('hidden');
             reusePromptBtn.classList.add('hidden');
         }
+
+        // --- Metadaten hinzufügen (wie in openGalleryLightbox) ---
+        if (imgObj.user) {
+            let dateStr = '';
+            if (imgObj.timestamp) {
+                let parts = imgObj.timestamp.split('T');
+                if (parts.length === 2) {
+                    let date = parts[0];
+                    let time = parts[1].split('-').slice(0, 3).join(':');
+                    let dateObj = new Date(`${date}T${time}Z`); // Assuming timestamp is UTC
+                    if (!isNaN(dateObj.getTime())) {
+                        const dateOptions = {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                            // No timeZone option, browser will use local
+                        };
+                        dateStr = dateObj.toLocaleString(currentLanguage, dateOptions);
+                    }
+                }
+            }
+            let metaHeader = `
+                <div class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    ${imgObj.user}
+                </div>
+                ${dateStr ? `
+                <div class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    ${dateStr}
+                </div>
+                ` : ''}`;
+            lightboxMeta.innerHTML = metaHeader;
+            lightboxMeta.classList.remove('hidden');
+            
+            // Qualität und Seitenverhältnis
+            const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high' };
+            const aspectRatioLabels = { '1024x1024': '1:1', '1024x1536': '2:3', '1536x1024': '3:2' };
+            const quality = translate(qualityKeyMap[imgObj.quality] || imgObj.quality);
+            const aspectRatio = aspectRatioLabels[imgObj.size] || imgObj.size;
+            const qualityColors = {
+                [translate('settings.quality.low')]: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+                [translate('settings.quality.medium')]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                [translate('settings.quality.high')]: 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400'
+            };
+            document.getElementById('lightboxAspectRatio').textContent = aspectRatio;
+            const qualityLabel = document.getElementById('lightboxQualityLabel');
+            const qualityText = document.getElementById('lightboxQuality');
+            const qualityColor = qualityColors[quality] || 'bg-gray-50 dark:bg-gray-500/10 text-gray-600 dark:text-gray-400';
+            qualityLabel.className = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs ${qualityColor}`;
+            qualityText.textContent = quality;
+            qualityLabel.querySelector('svg').setAttribute('class', `w-4 h-4 ${qualityColor.includes('yellow') ? 'text-yellow-500' : qualityColor.includes('blue') ? 'text-blue-500' : qualityColor.includes('green') ? 'text-green-500' : 'text-gray-500'}`);
+
+            // Referenzbilder Label hinzufügen
+            const refCount = parseInt(imgObj.ref_image_count) || 0;
+            const refLabel = document.getElementById('lightboxRefCount');
+            if (refLabel) {
+                if (refCount > 0) {
+                    refLabel.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400';
+                    refLabel.innerHTML = `
+                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>${refCount + translate(refCount !== 1 ? 'label.referenceImages.plural' : 'label.referenceImages.singular')}</span>
+                    `;
+                    refLabel.style.display = 'inline-flex';
+                } else {
+                    refLabel.style.display = 'none';
+                }
+            }
+        } else {
+            lightboxMeta.classList.add('hidden');
+        }
+
+        // Privat-Checkbox
+        if (imgObj.user && userName.textContent && imgObj.user === userName.textContent.trim()) {
+            privateCheckboxContainer.classList.remove('hidden');
+            const isPrivate = imgObj.private === '1';
+            privateCheckbox.setAttribute('aria-checked', isPrivate ? 'true' : 'false');
+            privateCheckbox.classList.toggle('bg-indigo-600', isPrivate);
+            privateCheckbox.classList.toggle('bg-gray-200', !isPrivate);
+            privateCheckbox.querySelector('span').classList.toggle('translate-x-4', isPrivate);
+            privateCheckbox.querySelector('span').classList.toggle('translate-x-0', !isPrivate);
+            const [publicLabel, privateLabel] = privateCheckbox.parentElement.querySelectorAll('span');
+            publicLabel.classList.toggle('hidden', isPrivate);
+            privateLabel.classList.toggle('hidden', !isPrivate);
+            const [publicIcon, privateIcon] = privateCheckbox.querySelector('span').querySelectorAll('span');
+            publicIcon.classList.toggle('hidden', isPrivate);
+            privateIcon.classList.toggle('hidden', !isPrivate);
+            privateCheckbox.disabled = false;
+        } else {
+            privateCheckboxContainer.classList.add('hidden');
+            privateCheckbox.setAttribute('aria-checked', 'false');
+            privateCheckbox.disabled = true;
+        }
+
         renderBatchThumbnails(imgObj);
         // Navigation (Prev/Next) immer anzeigen
         updateLightboxNav();

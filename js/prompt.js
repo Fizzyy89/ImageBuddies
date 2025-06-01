@@ -1,8 +1,61 @@
-import { translate } from './i18n.js';
+import { translate, currentLanguage } from './i18n.js';
 // Prompt- und Referenzbild-Handling-Modul
 // Verantwortlich für Prompt-Optimierung, Bild-Upload, Drag&Drop, Bildvorschau, Referenzbilder und Kostenberechnung
 
 export let uploadedFiles = [];
+
+// Cache für die Random-Prompt-Elemente
+let randomPromptElements = null;
+
+// Funktion zum Laden der Random-Prompt-Elemente
+async function loadRandomPromptElements() {
+    if (randomPromptElements) {
+        return randomPromptElements;
+    }
+    
+    try {
+        const response = await fetch('js/random-prompt-elements.json');
+        if (!response.ok) {
+            throw new Error('Failed to load random prompt elements');
+        }
+        randomPromptElements = await response.json();
+        return randomPromptElements;
+    } catch (error) {
+        console.error('Error loading random prompt elements:', error);
+        return null;
+    }
+}
+
+// Funktion zur zufälligen Auswahl eines Elements aus einem Array
+function getRandomElement(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
+// Funktion zur Generierung eines strukturierten Random-Prompts
+function generateStructuredRandomPrompt(elements) {
+    const subject = getRandomElement(elements.subjects);
+    const artStyle = getRandomElement(elements.artStyles);
+    const atmosphere = getRandomElement(elements.atmosphere);
+    const composition = getRandomElement(elements.composition);
+    const colors = getRandomElement(elements.colors);
+    const details = getRandomElement(elements.details);
+    const template = getRandomElement(elements.templates);
+    
+    // Template mit den ausgewählten Elementen füllen
+    return template
+        .replace('{subject}', subject)
+        .replace('{artStyle}', artStyle)
+        .replace('{atmosphere}', atmosphere)
+        .replace('{composition}', composition)
+        .replace('{colors}', colors)
+        .replace('{details}', details);
+}
+
+// Funktion zur Erstellung des sprachspezifischen LLM-Prompts
+function createLanguageSpecificPrompt(structuredPrompt) {
+    const instruction = translate('prompt.llmInstruction');
+    return `${instruction} "${structuredPrompt}"`;
+}
 
 export function setOptimizeBtnState(optimizeBtn, promptInput) {
     if (!optimizeBtn) return;
@@ -11,12 +64,89 @@ export function setOptimizeBtnState(optimizeBtn, promptInput) {
     optimizeBtn.classList.toggle('cursor-not-allowed', optimizeBtn.disabled);
 }
 
+export function initSurpriseMeHandler({
+    surpriseMeBtn,
+    surpriseMeSpinner,
+    surpriseMeIcon,
+    surpriseMeError,
+    promptInput
+}) {
+    if (!surpriseMeBtn) return;
+
+    surpriseMeBtn.addEventListener('click', async () => {
+        surpriseMeError.classList.add('hidden');
+        surpriseMeSpinner.classList.remove('hidden');
+        surpriseMeIcon.classList.add('hidden');
+        surpriseMeBtn.disabled = true;
+
+        try {
+            // Lade die Random-Prompt-Elemente
+            const elements = await loadRandomPromptElements();
+            if (!elements) {
+                throw new Error(translate('error.loadRandomElementsFailed'));
+            }
+
+            // Generiere einen strukturierten Random-Prompt
+            const structuredPrompt = generateStructuredRandomPrompt(elements);
+
+            // Sende den strukturierten Prompt an das LLM zur Verfeinerung
+            const response = await fetch('php/openai_proxy.php?endpoint=random', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: createLanguageSpecificPrompt(structuredPrompt)
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || translate('error.optimizationFailed'));
+            }
+
+            const data = await response.json();
+            const randomPrompt = data.randomPrompt;
+
+            if (randomPrompt) {
+                promptInput.value = randomPrompt;
+                setOptimizeBtnState(document.getElementById('optimizePromptBtn'), promptInput);
+            } else {
+                // Fallback: Verwende den strukturierten Prompt direkt
+                promptInput.value = structuredPrompt;
+                setOptimizeBtnState(document.getElementById('optimizePromptBtn'), promptInput);
+            }
+        } catch (e) {
+            // Bei Fehler: Versuche Fallback mit direktem strukturiertem Prompt
+            try {
+                const elements = await loadRandomPromptElements();
+                if (elements) {
+                    const structuredPrompt = generateStructuredRandomPrompt(elements);
+                    promptInput.value = structuredPrompt;
+                    setOptimizeBtnState(document.getElementById('optimizePromptBtn'), promptInput);
+                } else {
+                    throw new Error(translate('error.optimizationFailed'));
+                }
+            } catch (fallbackError) {
+                surpriseMeError.textContent = fallbackError.message || translate('error.optimizationFailed');
+                surpriseMeError.classList.remove('hidden');
+            }
+        } finally {
+            surpriseMeSpinner.classList.add('hidden');
+            surpriseMeIcon.classList.remove('hidden');
+            surpriseMeBtn.disabled = false;
+        }
+    });
+}
+
 export function initPromptHandlers({
     promptInput,
     optimizeBtn,
     optimizeSpinner,
     optimizeIcon,
-    optimizeError
+    optimizeError,
+    surpriseMeBtn,
+    surpriseMeSpinner,
+    surpriseMeIcon,
+    surpriseMeError
 }) {
     setOptimizeBtnState(optimizeBtn, promptInput);
     promptInput.addEventListener('input', () => setOptimizeBtnState(optimizeBtn, promptInput));
@@ -62,6 +192,15 @@ export function initPromptHandlers({
             }
         });
     }
+
+    // Initialize surprise me handler
+    initSurpriseMeHandler({
+        surpriseMeBtn,
+        surpriseMeSpinner,
+        surpriseMeIcon,
+        surpriseMeError,
+        promptInput
+    });
 }
 
 export function createImageUploadInput(onChange) {
@@ -189,7 +328,7 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
         costDisplay.id = 'refImagesCost';
         imagePreviewContainer.parentNode.insertBefore(costDisplay, imagePreviewContainer.nextSibling);
     }
-    const totalCost = uploadedFiles.length * 4;
+    const totalCost = uploadedFiles.length * 3;
     costDisplay.className = 'flex items-center gap-3 text-sm mb-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-4 py-2.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20';
     costDisplay.innerHTML = `
         <div class="flex items-center gap-2">
@@ -210,7 +349,7 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
     updateTotalCost();
 }
 
-export function updateTotalCost(uploadedFiles) {
+export function updateTotalCost() {
     const qualityBtn = document.querySelector('.quality-btn.selected');
     const imageCountBtn = document.querySelector('.image-count-btn.selected');
     const qualityCosts = {
@@ -220,7 +359,7 @@ export function updateTotalCost(uploadedFiles) {
     };
     const qualityCost = qualityBtn ? qualityCosts[qualityBtn.dataset.value] : 6; // Default: medium
     const imageCount = imageCountBtn ? parseInt(imageCountBtn.dataset.value) : 1;
-    const refImagesCost = uploadedFiles.length * 4;
+    const refImagesCost = uploadedFiles.length * 3;
     const totalCost = (qualityCost * imageCount) + refImagesCost;
     
     // Update cost label

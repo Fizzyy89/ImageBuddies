@@ -34,6 +34,7 @@ $stats = [
     'qualityDistribution' => ['low' => 0, 'medium' => 0, 'high' => 0],
     'aspectRatioDistribution' => [],
     'userDistribution' => [],
+    'costsPerUser' => [],
     'costsPerMonth' => [],
     'imagesPerDay' => [],
     'imagesPerMonth' => [],
@@ -114,6 +115,17 @@ foreach ($lines as $line) {
     }
     $stats['userDistribution'][$user]++;
     
+    // Berechne Kosten für dieses Bild
+    $imageCost = $PRICES[$quality];
+    $refCost = $refCount * $REFERENCE_IMAGE_PRICE;
+    $totalImageCost = $imageCost + $refCost;
+    
+    // Kosten pro Benutzer
+    if (!isset($stats['costsPerUser'][$user])) {
+        $stats['costsPerUser'][$user] = 0;
+    }
+    $stats['costsPerUser'][$user] += $totalImageCost;
+    
     // Bilder pro Tag
     $dayKey = substr($date, 0, 10); // Format: YYYY-MM-DD
     if (!isset($stats['imagesPerDay'][$dayKey])) {
@@ -127,11 +139,6 @@ foreach ($lines as $line) {
         $stats['imagesPerMonth'][$monthKey] = 0;
     }
     $stats['imagesPerMonth'][$monthKey]++;
-    
-    // Berechne Kosten für dieses Bild
-    $imageCost = $PRICES[$quality];
-    $refCost = $refCount * $REFERENCE_IMAGE_PRICE;
-    $totalImageCost = $imageCost + $refCost;
     
     // Kosten pro Tag
     if (!isset($stats['costsPerDay'][$dayKey])) {

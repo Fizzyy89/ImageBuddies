@@ -37,7 +37,8 @@ let charts = {
     avgRef: null,
     refCosts: null,
     batchStats: null,
-    imagesPerMonth: null
+    imagesPerMonth: null,
+    costsPerUser: null
 };
 
 // Chart.js Defaults für dunkles Theme
@@ -144,6 +145,7 @@ async function loadStatistics() {
         updateAvgRefChart(data.referenceImageStats);
         updateRefCostsChart(data.referenceImageStats);
         updateBatchStatsChart(data.batchStats);
+        updateCostsPerUserChart(data.costsPerUser);
 
     } catch (error) {
         console.error('Error fetching statistics:', error);
@@ -588,6 +590,48 @@ function updateBatchStatsChart(data) {
             plugins: {
                 legend: {
                     display: false
+                }
+            }
+        }
+    });
+}
+
+function updateCostsPerUserChart(data) {
+    const ctx = document.getElementById('costsPerUserChart');
+    if (charts.costsPerUser) charts.costsPerUser.destroy();
+
+    charts.costsPerUser = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(data),
+            datasets: [{
+                label: translate('statistics.costsPerUser.chartLabel'),
+                data: Object.values(data).map(cost => cost / 100), // Konvertiere von Cent zu Euro
+                backgroundColor: chartColors.orange[0],
+                borderWidth: 0,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: value => value.toFixed(2) + translate('statistics.unit.currency')
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.parsed.y.toFixed(2)}${translate('statistics.unit.currency')}`;
+                        }
+                    }
                 }
             }
         }

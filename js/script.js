@@ -1,6 +1,6 @@
 import { initAuth, checkLogin, setUserUI, showLogin, hideLogin } from './auth.js';
 import { initTheme, toggleTheme, syncMobileThemeToggle } from './theme.js';
-import { initPromptHandlers, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles } from './prompt.js';
+import { initPromptHandlers, initSurpriseMeHandler, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles } from './prompt.js';
 import { generateImage, downloadImage } from './generate.js';
 import { galleryImages, allImages, showOnlyUserImages, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setGridSize, getGridSize, setShowAdminPrivateImages, getShowAdminPrivateImages } from './gallery.js';
 import { initLightbox } from './lightbox.js';
@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const optimizeSpinner = document.getElementById('optimizeSpinner');
     const optimizeIcon = document.getElementById('optimizeIcon');
     const optimizeError = document.getElementById('optimizeError');
+    const surpriseMeBtn = document.getElementById('surpriseMeBtn');
+    const surpriseMeSpinner = document.getElementById('surpriseMeSpinner');
+    const surpriseMeIcon = document.getElementById('surpriseMeIcon');
+    const surpriseMeError = document.getElementById('surpriseMeError');
     const loginOverlay = document.getElementById('loginOverlay');
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
@@ -219,7 +223,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         optimizeBtn,
         optimizeSpinner,
         optimizeIcon,
-        optimizeError
+        optimizeError,
+        surpriseMeBtn,
+        surpriseMeSpinner,
+        surpriseMeIcon,
+        surpriseMeError
     });
 
     // Bild-Upload Input erstellen

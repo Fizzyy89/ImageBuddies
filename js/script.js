@@ -1,6 +1,6 @@
 import { initAuth, checkLogin, setUserUI, showLogin, hideLogin } from './auth.js';
 import { initTheme, toggleTheme, syncMobileThemeToggle } from './theme.js';
-import { initPromptHandlers, initSurpriseMeHandler, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles } from './prompt.js';
+import { initPromptHandlers, initSurpriseMeHandler, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles, initModeToggle, updateGeminiUploadGrid } from './prompt.js';
 import { generateImage, downloadImage } from './generate.js';
 import { galleryImages, allImages, showOnlyUserImages, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setGridSize, getGridSize, setShowAdminPrivateImages, getShowAdminPrivateImages } from './gallery.js';
 import { initLightbox } from './lightbox.js';
@@ -229,6 +229,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         surpriseMeIcon,
         surpriseMeError
     });
+
+    // Mode-Toggle initialisieren (OpenAI vs Gemini)
+    initModeToggle();
 
     // Bild-Upload Input erstellen
     const imageUploadInput = createImageUploadInput((e) => {
@@ -622,22 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Add user form handling
-    if (document.getElementById('addUserForm')) {
-        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const password = document.getElementById('password').value;
-
-            // Validiere Passwortlänge
-            const validation = validatePassword(password);
-            if (!validation.valid) {
-                showNotification(translate(validation.error_key), 'error');
-                return;
-            }
-
-            // ... existing code ...
-        });
-    }
+    // Add user form handling ist in user_management.js implementiert
 });
 
 function validatePassword(password) {

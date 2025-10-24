@@ -31,6 +31,36 @@ export function initLightbox({
     let currentGalleryIndex = -1;
     let tempDirectImage = null; // Merkt sich, ob ein Bild direkt angezeigt wird
 
+    // Hilfsfunktion: Referenzbilder-Label mit Toggle-Funktionalität
+    function setupRefLabel(imgObj) {
+        const refCount = parseInt(imgObj.ref_image_count) || 0;
+        const refLabel = document.getElementById('lightboxRefCount');
+        if (refLabel) {
+            if (refCount > 0) {
+                refLabel.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors';
+                refLabel.title = translate('lightbox.refImagesToggleTooltip');
+                refLabel.innerHTML = `
+                    <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>${refCount + translate(refCount !== 1 ? 'label.referenceImages.plural' : 'label.referenceImages.singular')}</span>
+                `;
+                refLabel.style.display = 'inline-flex';
+                refLabel.replaceWith(refLabel.cloneNode(true));
+                const newRefLabel = document.getElementById('lightboxRefCount');
+                newRefLabel.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const refsRow = lightboxPrompt.parentNode.querySelector('.lightbox-refs-row');
+                    if (refsRow) {
+                        refsRow.classList.toggle('hidden');
+                    }
+                });
+            } else {
+                refLabel.style.display = 'none';
+            }
+        }
+    }
+
     function renderBatchThumbnails(imgObj) {
         // Entferne alte Thumbnail-Zeilen
         if (lightboxPrompt && lightboxPrompt.parentNode) {
@@ -39,60 +69,96 @@ export function initLightbox({
         }
         if (!imgObj.batchId) return;
         const batchImages = allImages.filter(img => img.batchId === imgObj.batchId);
-        if (batchImages.length <= 1) return;
-        // --- Thumbnail-Zeile ---
-        const thumbBarRow = document.createElement('div');
-        thumbBarRow.className = 'flex items-center gap-3 mt-4 mb-6 lightbox-batch-row';
-        // Label
-        const batchLabel = document.createElement('div');
-        batchLabel.className = 'flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-md text-[12px] bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 leading-tight min-w-[40px]';
-        batchLabel.innerHTML = `
-            <span class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
-                </svg>
-                <span>${translate('lightbox.batchLabel.image')}</span>
-            </span>
-            <span class="block text-center font-bold">${imgObj.imageNumber} ${translate('lightbox.batchLabel.of')} ${batchImages.length}</span>
-        `;
-        thumbBarRow.appendChild(batchLabel);
-        // Thumbnails sortiert
-        batchImages.sort((a, b) => parseInt(a.imageNumber) - parseInt(b.imageNumber));
-        batchImages.forEach((img, idx) => {
-            const thumb = document.createElement('img');
-            thumb.src = img.file;
-            thumb.alt = translate('lightbox.batchImageAlt.prefix') + (idx + 1);
-            thumb.className = 'w-14 h-14 object-cover rounded-lg border-2 transition cursor-pointer';
-            if (String(img.imageNumber) === String(imgObj.imageNumber)) {
-                thumb.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-300');
-            } else {
-                thumb.classList.add('border-gray-200', 'dark:border-slate-700', 'opacity-80', 'hover:opacity-100');
-            }
-            thumb.onclick = () => {
-                const galleryIdx = galleryImages.findIndex(g => g.file === img.file);
-                if (galleryIdx !== -1) {
-                    openGalleryLightbox(galleryIdx);
-                } else {
-                    showBatchImageDirect(img);
-                }
-            };
-            thumbBarRow.appendChild(thumb);
-        });
         // Einfügen nach dem Label-Container (Qualität/Seitenverhältnis/Referenzbilder)
         let labelContainer = null;
         if (lightboxPrompt && lightboxPrompt.parentNode) {
             // Suche den Label-Container (enthält id="lightboxAspectRatio")
             labelContainer = Array.from(lightboxPrompt.parentNode.querySelectorAll('div')).find(div => div.querySelector && div.querySelector('#lightboxAspectRatio'));
         }
-        if (labelContainer && labelContainer.parentNode) {
-            // Optional: Trennlinie einfügen
-            const separator = document.createElement('div');
-            separator.className = 'border-t border-gray-200 dark:border-slate-700 my-2 lightbox-batch-separator';
-            labelContainer.parentNode.insertBefore(separator, labelContainer.nextSibling);
-            labelContainer.parentNode.insertBefore(thumbBarRow, separator.nextSibling);
-        } else if (lightboxPrompt && lightboxPrompt.parentNode) {
-            // Fallback: wie bisher nach dem Prompt
-            lightboxPrompt.parentNode.insertBefore(thumbBarRow, lightboxPrompt.nextSibling);
+        // --- Thumbnail-Zeile (nur wenn Batch > 1 Bild) ---
+        let thumbBarRow = null;
+        if (batchImages.length > 1) {
+            thumbBarRow = document.createElement('div');
+            thumbBarRow.className = 'flex items-center gap-3 mt-4 mb-6 lightbox-batch-row';
+            const batchLabel = document.createElement('div');
+            batchLabel.className = 'flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-md text-[12px] bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 leading-tight min-w-[40px]';
+            batchLabel.innerHTML = `
+                <span class="flex items-center justify-center gap-1">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
+                    </svg>
+                    <span>${translate('lightbox.batchLabel.image')}</span>
+                </span>
+                <span class="block text-center font-bold">${imgObj.imageNumber} ${translate('lightbox.batchLabel.of')} ${batchImages.length}</span>
+            `;
+            thumbBarRow.appendChild(batchLabel);
+            batchImages.sort((a, b) => parseInt(a.imageNumber) - parseInt(b.imageNumber));
+            batchImages.forEach((img, idx) => {
+                const thumb = document.createElement('img');
+                thumb.src = img.file;
+                thumb.alt = translate('lightbox.batchImageAlt.prefix') + (idx + 1);
+                thumb.className = 'w-14 h-14 object-cover rounded-lg border-2 transition cursor-pointer';
+                if (String(img.imageNumber) === String(imgObj.imageNumber)) {
+                    thumb.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-300');
+                } else {
+                    thumb.classList.add('border-gray-200', 'dark:border-slate-700', 'opacity-80', 'hover:opacity-100');
+                }
+                thumb.onclick = () => {
+                    const galleryIdx = galleryImages.findIndex(g => g.file === img.file);
+                    if (galleryIdx !== -1) {
+                        openGalleryLightbox(galleryIdx);
+                    } else {
+                        showBatchImageDirect(img);
+                    }
+                };
+                thumbBarRow.appendChild(thumb);
+            });
+            if (labelContainer && labelContainer.parentNode) {
+                const separator = document.createElement('div');
+                separator.className = 'border-t border-gray-200 dark:border-slate-700 my-2 lightbox-batch-separator';
+                labelContainer.parentNode.insertBefore(separator, labelContainer.nextSibling);
+                labelContainer.parentNode.insertBefore(thumbBarRow, separator.nextSibling);
+            } else if (lightboxPrompt && lightboxPrompt.parentNode) {
+                lightboxPrompt.parentNode.insertBefore(thumbBarRow, lightboxPrompt.nextSibling);
+            }
+        }
+
+        // --- Referenzbilder-Leiste (falls vorhanden, standardmäßig versteckt) ---
+        const owner = imgObj.user || '';
+        const currentGalleryMain = galleryImages.find(g => g.batchId === imgObj.batchId && String(g.imageNumber) === '1');
+        const refImages = currentGalleryMain && currentGalleryMain.refImages ? currentGalleryMain.refImages : (imgObj.refImages || []);
+        if (Array.isArray(refImages) && refImages.length > 0) {
+            const refsRow = document.createElement('div');
+            refsRow.className = 'flex items-center gap-3 mt-2 mb-2 lightbox-batch-row lightbox-refs-row hidden';
+            const refsLabel = document.createElement('div');
+            refsLabel.className = 'flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[12px] bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400';
+            refsLabel.innerHTML = `
+                <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span>${translate('lightbox.refImagesLabel') || 'Referenzen'}</span>`;
+            refsRow.appendChild(refsLabel);
+            const refsWrapper = document.createElement('div');
+            refsWrapper.className = 'flex items-center gap-2 overflow-x-auto';
+            refImages.forEach((src, idx) => {
+                const r = document.createElement('img');
+                r.src = src;
+                r.alt = translate('altText.referenceImage');
+                r.className = 'w-14 h-14 object-cover rounded-lg border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition-opacity';
+                r.onclick = () => window.open(src, '_blank');
+                refsWrapper.appendChild(r);
+            });
+            refsRow.appendChild(refsWrapper);
+            if (thumbBarRow && thumbBarRow.parentNode) {
+                thumbBarRow.parentNode.insertBefore(refsRow, thumbBarRow);
+            } else if (labelContainer && labelContainer.parentNode) {
+                const separator = document.createElement('div');
+                separator.className = 'border-t border-gray-200 dark:border-slate-700 my-2 lightbox-batch-separator';
+                labelContainer.parentNode.insertBefore(separator, labelContainer.nextSibling);
+                labelContainer.parentNode.insertBefore(refsRow, separator.nextSibling);
+            } else if (lightboxPrompt && lightboxPrompt.parentNode) {
+                lightboxPrompt.parentNode.insertBefore(refsRow, lightboxPrompt.nextSibling);
+            }
         }
         // --- Neuer Hauptbild-Button UNTER der Thumbnail-Zeile ---
         // Vorherige Instanzen entfernen, um Duplikate zu verhindern
@@ -208,14 +274,15 @@ export function initLightbox({
             lightboxMeta.innerHTML = metaHeader;
             lightboxMeta.classList.remove('hidden');
             // Qualität und Seitenverhältnis
-            const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high' };
+            const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high', 'gemini': 'settings.quality.gemini' };
             const aspectRatioLabels = { '1024x1024': '1:1', '1024x1536': '2:3', '1536x1024': '3:2' };
             const quality = translate(qualityKeyMap[imgObj.quality] || imgObj.quality);
             const aspectRatio = aspectRatioLabels[imgObj.size] || imgObj.size;
             const qualityColors = {
                 [translate('settings.quality.low')]: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
                 [translate('settings.quality.medium')]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400',
-                [translate('settings.quality.high')]: 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400'
+                [translate('settings.quality.high')]: 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400',
+                [translate('settings.quality.gemini')]: 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400'
             };
             document.getElementById('lightboxAspectRatio').textContent = aspectRatio;
             const qualityLabel = document.getElementById('lightboxQualityLabel');
@@ -223,25 +290,10 @@ export function initLightbox({
             const qualityColor = qualityColors[quality] || 'bg-gray-50 dark:bg-gray-500/10 text-gray-600 dark:text-gray-400';
             qualityLabel.className = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs ${qualityColor}`;
             qualityText.textContent = quality;
-            qualityLabel.querySelector('svg').setAttribute('class', `w-4 h-4 ${qualityColor.includes('yellow') ? 'text-yellow-500' : qualityColor.includes('blue') ? 'text-blue-500' : qualityColor.includes('green') ? 'text-green-500' : 'text-gray-500'}`);
+            qualityLabel.querySelector('svg').setAttribute('class', `w-4 h-4 ${qualityColor.includes('yellow') ? 'text-yellow-500' : qualityColor.includes('blue') ? 'text-blue-500' : qualityColor.includes('green') ? 'text-green-500' : qualityColor.includes('purple') ? 'text-purple-500' : 'text-gray-500'}`);
 
-            // Referenzbilder Label hinzufügen
-            const refCount = parseInt(imgObj.ref_image_count) || 0;
-            const refLabel = document.getElementById('lightboxRefCount');
-            if (refLabel) {
-                if (refCount > 0) {
-                    refLabel.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400';
-                    refLabel.innerHTML = `
-                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span>${refCount + translate(refCount !== 1 ? 'label.referenceImages.plural' : 'label.referenceImages.singular')}</span>
-                    `;
-                    refLabel.style.display = 'inline-flex';
-                } else {
-                    refLabel.style.display = 'none';
-                }
-            }
+            // Referenzbilder Label hinzufügen (mit Toggle-Funktionalität)
+            setupRefLabel(imgObj);
         } else {
             lightboxMeta.classList.add('hidden');
         }
@@ -705,23 +757,8 @@ export function initLightbox({
             qualityText.textContent = quality;
             qualityLabel.querySelector('svg').setAttribute('class', `w-4 h-4 ${qualityColor.includes('yellow') ? 'text-yellow-500' : qualityColor.includes('blue') ? 'text-blue-500' : qualityColor.includes('green') ? 'text-green-500' : 'text-gray-500'}`);
 
-            // Referenzbilder Label hinzufügen
-            const refCount = parseInt(imgObj.ref_image_count) || 0;
-            const refLabel = document.getElementById('lightboxRefCount');
-            if (refLabel) {
-                if (refCount > 0) {
-                    refLabel.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400';
-                    refLabel.innerHTML = `
-                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span>${refCount + translate(refCount !== 1 ? 'label.referenceImages.plural' : 'label.referenceImages.singular')}</span>
-                    `;
-                    refLabel.style.display = 'inline-flex';
-                } else {
-                    refLabel.style.display = 'none';
-                }
-            }
+            // Referenzbilder Label hinzufügen (mit Toggle-Funktionalität)
+            setupRefLabel(imgObj);
         } else {
             lightboxMeta.classList.add('hidden');
         }

@@ -187,4 +187,74 @@ html, body {
             transform: translateX(100%);
         }
     }
-} 
+}
+
+/* Mode Toggle Styles */
+.mode-toggle-btn {
+    background: transparent;
+    color: #6b7280;
+}
+
+.mode-toggle-btn.active {
+    background: white;
+    color: #4f46e5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .mode-toggle-btn.active {
+    background: rgb(51 65 85);
+    color: #818cf8;
+}
+
+/* Gemini Upload Grid Styles */
+#geminiUploadGrid {
+    height: 256px; /* h-64 = 16rem = 256px */
+}
+
+#geminiUploadGrid > div:first-child {
+    height: 256px; /* h-64 = 16rem = 256px */
+    max-height: 256px;
+}
+
+#geminiUploadGrid > div:hover .text-yellow-500,
+#geminiUploadGrid > div:hover .text-yellow-400 {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+#geminiUploadGrid img {
+    object-fit: cover;
+    image-rendering: auto;
+}
+
+/* Smooth opacity transition for optional slots */
+#geminiUploadGrid .opacity-60 {
+    transition: opacity 0.3s ease;
+}
+
+#geminiUploadGrid .opacity-60:hover {
+    opacity: 1;
+}
+
+@media (max-width: 640px) {
+    #geminiUploadGrid {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    #geminiUploadGrid > div:first-child {
+        height: 200px;
+        max-height: 200px;
+        width: 100%;
+    }
+    
+    #geminiUploadGrid > div:last-child {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    #geminiUploadGrid > div:last-child > div {
+        width: 120px;
+        height: 120px;
+    }
+}

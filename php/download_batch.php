@@ -13,32 +13,19 @@ if (!$batchId) {
     exit;
 }
 
-// Lese das Logfile, um alle Bilder der Batch zu finden
-$logfile = dirname(__DIR__) . '/database/image_log.csv';
-if (!file_exists($logfile)) {
-    http_response_code(500);
-    echo json_encode(['error_key' => 'error.downloadBatch.logNotFound']);
-    exit;
-}
+require_once __DIR__ . '/db.php';
 
-$lines = file($logfile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-$batchImages = [];
-$prompt = '';
-
-foreach ($lines as $line) {
-    $parts = explode(';', $line);
-    if (isset($parts[8]) && $parts[8] === $batchId) {
-        $filename = $parts[1];
-        $prompt = $parts[2] ?? '';  // Speichere den Prompt für den ZIP-Namen
-        $batchImages[] = $filename;
-    }
-}
-
-if (empty($batchImages)) {
+// Finde alle nicht gelöschten Bilder der Batch und hole optional einen Prompt für den Dateinamen
+$rows = db_rows('SELECT filename, prompt FROM generations WHERE deleted = 0 AND batch_id = ?', [$batchId]);
+if (!$rows || count($rows) === 0) {
     http_response_code(404);
     echo json_encode(['error_key' => 'error.downloadBatch.noImagesInBatch']);
     exit;
 }
+
+$batchImages = array_map(fn($r) => $r['filename'], $rows);
+$prompt = '';
+foreach ($rows as $r) { if (!empty($r['prompt'])) { $prompt = $r['prompt']; break; } }
 
 // Erstelle temporäre ZIP-Datei
 $zipname = tempnam(sys_get_temp_dir(), 'batch_');
@@ -71,4 +58,4 @@ header('Content-Length: ' . filesize($zipname));
 readfile($zipname);
 
 // Lösche die temporäre ZIP-Datei
-unlink($zipname); 
+unlink($zipname);

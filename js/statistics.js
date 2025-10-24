@@ -159,13 +159,14 @@ function updateQualityChart(data) {
     const labels = {
         'low': translate('settings.quality.low'),
         'medium': translate('settings.quality.medium'),
-        'high': translate('settings.quality.high')
+        'high': translate('settings.quality.high'),
+        'gemini': (translate('settings.quality.gemini') || 'Gemini')
     };
 
     charts.quality = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: Object.keys(data).map(key => labels[key]),
+            labels: Object.keys(data).map(key => labels[key] || key),
             datasets: [{
                 data: Object.values(data),
                 backgroundColor: chartColors.blue,

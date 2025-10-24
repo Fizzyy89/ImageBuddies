@@ -1,5 +1,6 @@
 <?php
 session_start();
+header('Content-Type: application/json');
 
 // Prüfe Admin-Berechtigung
 if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
@@ -8,30 +9,14 @@ if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] 
     exit;
 }
 
-// Preise für die Berechnung
-$PRICES = [
-    'low' => 3,    // 3 Cent
-    'medium' => 6,  // 6 Cent
-    'high' => 25    // 25 Cent
-];
-$REFERENCE_IMAGE_PRICE = 3; // 3 Cent pro Referenzbild
+require_once __DIR__ . '/db.php';
 
-$statsFile = dirname(__DIR__) . '/database/statistics.csv';
-
-if (!file_exists($statsFile)) {
-    echo json_encode(['error_key' => 'error.statistics.noData']);
-    exit;
-}
-
-// Lese die CSV-Datei
-$lines = file($statsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-$header = array_shift($lines); // Entferne Header
-
+try {
 // Initialisiere Statistiken
 $stats = [
     'totalImages' => 0,
     'totalCosts' => 0,
-    'qualityDistribution' => ['low' => 0, 'medium' => 0, 'high' => 0],
+    'qualityDistribution' => ['low' => 0, 'medium' => 0, 'high' => 0, 'gemini' => 0],
     'aspectRatioDistribution' => [],
     'userDistribution' => [],
     'costsPerUser' => [],
@@ -46,114 +31,79 @@ $stats = [
     'costsPerDay' => [],
     'batchStats' => [
         'single' => 0,
-        'batches' => [] 
+        'batches' => []
     ]
 ];
 
-// Sammle die Daten
+// Gesamtsummen (nur nicht-gelöschte Bilder zählen? Im CSV wurden gelöschte Bilder nicht mehr gezählt; Einträge blieben. Wir zählen nur deleted=0)
+$rows = db_rows('SELECT g.created_at, g.size, g.quality, g.ref_image_count, g.batch_id, g.image_number, g.cost_total_cents, u.username FROM generations g JOIN users u ON u.id=g.user_id');
+
 $firstDate = null;
 $lastDate = null;
-
-// Erste Durchlauf: Sammle alle BatchIds und ihre Bilder
 $batchCounts = [];
-foreach ($lines as $line) {
-    $data = str_getcsv($line, ';');
-    $batchId = $data[5] ?? '';
+foreach ($rows as $r) {
+    $batchId = $r['batch_id'] ?? '';
     if ($batchId !== '') {
-        if (!isset($batchCounts[$batchId])) {
-            $batchCounts[$batchId] = 0;
-        }
+        if (!isset($batchCounts[$batchId])) $batchCounts[$batchId] = 0;
         $batchCounts[$batchId]++;
     }
 }
 
-// Zweiter Durchlauf: Normale Statistiken + korrekte Batch-Zählung
-foreach ($lines as $line) {
-    $data = str_getcsv($line, ';');
-    
-    // CSV Format: Datum;Seitenverhältnis;Qualität;AnzahlReferenzbilder;User;BatchId;ImageNumber
-    $date = $data[0];
-    $size = $data[1];
-    $quality = $data[2];
-    $refCount = intval($data[3]);
-    $user = $data[4];
-    $batchId = $data[5] ?? '';
-    $imageNumber = intval($data[6] ?? 1);
-    
-    // Batch-Statistiken (nur für erste Bilder eines Batches)
+foreach ($rows as $r) {
+    $date = isset($r['created_at']) ? (string)$r['created_at'] : '';
+    if ($date === '') {
+        // Skip invalid date rows
+        continue;
+    }
+    $size = $r['size'];
+    $quality = $r['quality'];
+    $refCount = intval($r['ref_image_count']);
+    $user = $r['username'];
+    $batchId = $r['batch_id'] ?? '';
+    $imageNumber = intval($r['image_number'] ?? 1);
+    $totalImageCost = intval($r['cost_total_cents']);
+
     if ($imageNumber === 1) {
         if ($batchId === '') {
-            // Einzelbild
             $stats['batchStats']['single']++;
         } else {
-            // Speichere die tatsächliche Batch-Größe
             $stats['batchStats']['batches'][$batchId] = $batchCounts[$batchId];
         }
     }
-    
-    // Setze erste und letzte Datum
+
     if (!$firstDate || $date < $firstDate) $firstDate = $date;
     if (!$lastDate || $date > $lastDate) $lastDate = $date;
-    
-    // Zähle Gesamtbilder
+
     $stats['totalImages']++;
-    
-    // Qualitätsverteilung
-    if (isset($stats['qualityDistribution'][$quality])) {
-        $stats['qualityDistribution'][$quality]++;
-    }
-    
-    // Seitenverhältnis
-    if (!isset($stats['aspectRatioDistribution'][$size])) {
-        $stats['aspectRatioDistribution'][$size] = 0;
-    }
+
+    if (!isset($stats['qualityDistribution'][$quality])) $stats['qualityDistribution'][$quality] = 0;
+    $stats['qualityDistribution'][$quality]++;
+
+    if (!isset($stats['aspectRatioDistribution'][$size])) $stats['aspectRatioDistribution'][$size] = 0;
     $stats['aspectRatioDistribution'][$size]++;
-    
-    // Benutzerverteilung
-    if (!isset($stats['userDistribution'][$user])) {
-        $stats['userDistribution'][$user] = 0;
-    }
+
+    if (!isset($stats['userDistribution'][$user])) $stats['userDistribution'][$user] = 0;
     $stats['userDistribution'][$user]++;
-    
-    // Berechne Kosten für dieses Bild
-    $imageCost = $PRICES[$quality];
-    $refCost = $refCount * $REFERENCE_IMAGE_PRICE;
-    $totalImageCost = $imageCost + $refCost;
-    
-    // Kosten pro Benutzer
-    if (!isset($stats['costsPerUser'][$user])) {
-        $stats['costsPerUser'][$user] = 0;
-    }
+
+    if (!isset($stats['costsPerUser'][$user])) $stats['costsPerUser'][$user] = 0;
     $stats['costsPerUser'][$user] += $totalImageCost;
-    
-    // Bilder pro Tag
-    $dayKey = substr($date, 0, 10); // Format: YYYY-MM-DD
-    if (!isset($stats['imagesPerDay'][$dayKey])) {
-        $stats['imagesPerDay'][$dayKey] = 0;
+
+    $dayKey = (strlen($date) >= 10) ? substr($date, 0, 10) : null;
+    if ($dayKey) {
+        if (!isset($stats['imagesPerDay'][$dayKey])) $stats['imagesPerDay'][$dayKey] = 0;
+        $stats['imagesPerDay'][$dayKey]++;
+        if (!isset($stats['costsPerDay'][$dayKey])) $stats['costsPerDay'][$dayKey] = 0;
+        $stats['costsPerDay'][$dayKey] += $totalImageCost;
     }
-    $stats['imagesPerDay'][$dayKey]++;
-    
-    // Bilder pro Monat
-    $monthKey = substr($date, 0, 7); // Format: YYYY-MM
-    if (!isset($stats['imagesPerMonth'][$monthKey])) {
-        $stats['imagesPerMonth'][$monthKey] = 0;
+
+    $monthKey = (strlen($date) >= 7) ? substr($date, 0, 7) : null;
+    if ($monthKey) {
+        if (!isset($stats['imagesPerMonth'][$monthKey])) $stats['imagesPerMonth'][$monthKey] = 0;
+        $stats['imagesPerMonth'][$monthKey]++;
+        if (!isset($stats['costsPerMonth'][$monthKey])) $stats['costsPerMonth'][$monthKey] = 0;
+        $stats['costsPerMonth'][$monthKey] += $totalImageCost;
     }
-    $stats['imagesPerMonth'][$monthKey]++;
-    
-    // Kosten pro Tag
-    if (!isset($stats['costsPerDay'][$dayKey])) {
-        $stats['costsPerDay'][$dayKey] = 0;
-    }
-    $stats['costsPerDay'][$dayKey] += $totalImageCost;
-    
-    // Kosten pro Monat
-    if (!isset($stats['costsPerMonth'][$monthKey])) {
-        $stats['costsPerMonth'][$monthKey] = 0;
-    }
-    $stats['costsPerMonth'][$monthKey] += $totalImageCost;
-    $stats['totalCosts'] += $totalImageCost;
-    
-    // Referenzbild-Statistiken
+
     if ($refCount > 0) {
         $stats['referenceImageStats']['withRefs']++;
         $stats['referenceImageStats']['totalRefs'] += $refCount;
@@ -162,37 +112,30 @@ foreach ($lines as $line) {
     }
 }
 
-// Berechne Durchschnitt Bilder pro Tag
-if ($firstDate && $lastDate) {
+if ($firstDate && $lastDate && strlen($firstDate) >= 10 && strlen($lastDate) >= 10) {
     $datetime1 = new DateTime(substr($firstDate, 0, 10));
     $datetime2 = new DateTime(substr($lastDate, 0, 10));
     $interval = $datetime1->diff($datetime2);
-    $daysDiff = $interval->days + 1; // +1 weil wir auch den ersten Tag mitzählen
+    $daysDiff = $interval->days + 1;
     $stats['avgImagesPerDay'] = round($stats['totalImages'] / $daysDiff, 1);
 }
 
-// Sortiere die Arrays chronologisch
 ksort($stats['costsPerMonth']);
 ksort($stats['imagesPerDay']);
 ksort($stats['costsPerDay']);
 ksort($stats['imagesPerMonth']);
 
-// Kosten als Zahlen (in Cents) belassen für JS-Formatierung
-$stats['totalCostsRaw'] = $stats['totalCosts'];
-$stats['avgCostPerImageRaw'] = $stats['totalImages'] > 0 ? ($stats['totalCosts'] / $stats['totalImages']) : 0;
+$stats['totalCostsRaw'] = array_sum(array_values($stats['costsPerUser']));
+$stats['totalCosts'] = $stats['totalCostsRaw'];
+$stats['avgCostPerImageRaw'] = $stats['totalImages'] > 0 ? ($stats['totalCostsRaw'] / $stats['totalImages']) : 0;
+$stats['avgCostPerImage'] = $stats['totalImages'] > 0 ? round($stats['totalCostsRaw'] / $stats['totalImages']) : 0;
 
-// Die Schlüssel totalCosts und avgCostPerImage werden nun die Rohwerte in Cents enthalten
-// Die benannten Schlüssel totalCostsRaw und avgCostPerImageRaw werden verwendet, um Verwirrung zu vermeiden,
-// aber wir überschreiben die Originale für die JS-Seite.
-$stats['totalCosts'] = $stats['totalCosts']; // Bleibt als Cent-Wert
-$stats['avgCostPerImage'] = $stats['totalImages'] > 0 ? round($stats['totalCosts'] / $stats['totalImages']) : 0; // Als Cent-Wert
-
-foreach ($stats['costsPerMonth'] as &$cost) {
-    $cost = round($cost / 100, 2);
-}
-foreach ($stats['costsPerDay'] as &$cost) {
-    $cost = round($cost / 100, 2);
-}
+foreach ($stats['costsPerMonth'] as &$cost) { $cost = round($cost / 100, 2); }
+foreach ($stats['costsPerDay'] as &$cost) { $cost = round($cost / 100, 2); }
 
 echo json_encode($stats);
-?> 
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'stats_failed']);
+}
+?>

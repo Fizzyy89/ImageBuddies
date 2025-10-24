@@ -3,6 +3,8 @@ import { translate, currentLanguage } from './i18n.js';
 // Verantwortlich für Prompt-Optimierung, Bild-Upload, Drag&Drop, Bildvorschau, Referenzbilder und Kostenberechnung
 
 export let uploadedFiles = [];
+export let currentMode = 'openai'; // 'openai' or 'gemini'
+export let geminiAvailable = false;
 
 // Cache für die Random-Prompt-Elemente
 let randomPromptElements = null;
@@ -219,20 +221,28 @@ export function handleImagePaste(e, uploadedFiles, updateImagePreviews) {
     const imageItems = items.filter(item => item.type.startsWith('image/'));
     if (imageItems.length > 0) {
         e.preventDefault();
-        if (uploadedFiles.length >= 8) {
-            alert(translate('alert.maxReferenceImagesLimit'));
+        const maxImages = currentMode === 'gemini' ? 3 : 8;
+        if (uploadedFiles.length >= maxImages) {
+            alert(currentMode === 'gemini' ? translate('gemini.maxImagesWarning') : translate('alert.maxReferenceImagesLimit'));
             return;
         }
         const files = imageItems.map(item => item.getAsFile()).filter(Boolean);
         if (files.length > 0) {
-            const remainingSlots = 8 - uploadedFiles.length;
+            const remainingSlots = maxImages - uploadedFiles.length;
             if (files.length > remainingSlots) {
                 alert(translate('alert.maxReferenceImagesRemaining.prefix') + remainingSlots + translate(remainingSlots !== 1 ? 'alert.maxReferenceImagesRemaining.pluralSuffix' : 'alert.maxReferenceImagesRemaining.singularSuffix'));
                 uploadedFiles.push(...files.slice(0, remainingSlots));
             } else {
                 uploadedFiles.push(...files);
             }
-            updateImagePreviews();
+            
+            // Update UI based on mode
+            if (currentMode === 'gemini') {
+                updateGeminiUploadGrid();
+                updateTotalCost();
+            } else {
+                updateImagePreviews();
+            }
         }
     }
 }
@@ -241,20 +251,28 @@ export function handleImageDrop(e, uploadedFiles, updateImagePreviews, promptInp
     e.preventDefault();
     e.stopPropagation();
     promptInput.classList.remove('border-indigo-500');
-    if (uploadedFiles.length >= 8) {
-        alert(translate('alert.maxReferenceImagesLimit'));
+    const maxImages = currentMode === 'gemini' ? 3 : 8;
+    if (uploadedFiles.length >= maxImages) {
+        alert(currentMode === 'gemini' ? translate('gemini.maxImagesWarning') : translate('alert.maxReferenceImagesLimit'));
         return;
     }
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
     if (files.length > 0) {
-        const remainingSlots = 8 - uploadedFiles.length;
+        const remainingSlots = maxImages - uploadedFiles.length;
         if (files.length > remainingSlots) {
             alert(translate('alert.maxReferenceImagesRemaining.prefix') + remainingSlots + translate(remainingSlots !== 1 ? 'alert.maxReferenceImagesRemaining.pluralSuffix' : 'alert.maxReferenceImagesRemaining.singularSuffix'));
             uploadedFiles.push(...files.slice(0, remainingSlots));
         } else {
             uploadedFiles.push(...files);
         }
-        updateImagePreviews();
+        
+        // Update UI based on mode
+        if (currentMode === 'gemini') {
+            updateGeminiUploadGrid();
+            updateTotalCost();
+        } else {
+            updateImagePreviews();
+        }
     }
 }
 
@@ -273,7 +291,8 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
     } else {
         removeAllImagesBtn?.classList.add('hidden');
     }
-    imagePreviewContainer.className = 'mb-2 grid grid-cols-8 gap-2 w-full';
+    const gridCols = currentMode === 'gemini' ? 'grid-cols-2' : 'grid-cols-8';
+    imagePreviewContainer.className = `mb-2 grid ${gridCols} gap-2 w-full`;
     uploadedFiles.forEach((file, idx) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'relative bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl flex items-center justify-center overflow-hidden aspect-square w-full';
@@ -309,7 +328,8 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
         wrapper.appendChild(imageNumber);
         imagePreviewContainer.appendChild(wrapper);
     });
-    const remainingSlots = 8 - uploadedFiles.length;
+    const maxImages = currentMode === 'gemini' ? 3 : 8;
+    const remainingSlots = maxImages - uploadedFiles.length;
     for (let i = 0; i < remainingSlots; i++) {
         const placeholder = document.createElement('div');
         placeholder.className = 'relative bg-gray-50 dark:bg-slate-800/50 border border-dashed border-gray-200 dark:border-slate-700 rounded-xl flex items-center justify-center aspect-square w-full';
@@ -349,7 +369,289 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
     updateTotalCost();
 }
 
+export function initModeToggle() {
+    const modeToggleContainer = document.getElementById('modeToggleContainer');
+    const modeOpenAIBtn = document.getElementById('modeOpenAI');
+    const modeGeminiBtn = document.getElementById('modeGemini');
+    
+    // Check availability flag from customization (no key disclosure, works for non-admins)
+    fetch('php/get_customization.php')
+        .then(res => res.json())
+        .then(cfg => {
+            if (cfg && cfg.geminiAvailable === true) {
+                geminiAvailable = true;
+                modeToggleContainer?.classList.remove('hidden');
+            } else {
+                geminiAvailable = false;
+                modeToggleContainer?.classList.add('hidden');
+                // ensure mode is openai when gemini is not available
+                currentMode = 'openai';
+                updateUIForMode();
+            }
+        })
+        .catch(() => {
+            geminiAvailable = false;
+            modeToggleContainer?.classList.add('hidden');
+            currentMode = 'openai';
+            updateUIForMode();
+        });
+    
+    // Mode toggle handlers
+    if (modeOpenAIBtn && modeGeminiBtn) {
+        modeOpenAIBtn.addEventListener('click', () => {
+            if (currentMode === 'openai') return;
+            currentMode = 'openai';
+            modeOpenAIBtn.classList.add('active');
+            modeGeminiBtn.classList.remove('active');
+            updateUIForMode();
+        });
+        
+        modeGeminiBtn.addEventListener('click', () => {
+            if (currentMode === 'gemini') return;
+            currentMode = 'gemini';
+            modeGeminiBtn.classList.add('active');
+            modeOpenAIBtn.classList.remove('active');
+            updateUIForMode();
+        });
+    }
+}
+
+function updateUIForMode() {
+    const aspectRatioGroup = document.getElementById('aspectRatioGroup');
+    const qualityGroup = document.getElementById('qualityGroup');
+    const imageCountGroup = document.getElementById('imageCountGroup');
+    const addReferenceImageBtn = document.getElementById('addReferenceImageBtn');
+    const optimizePromptBtn = document.getElementById('optimizePromptBtn');
+    const surpriseMeBtn = document.getElementById('surpriseMeBtn');
+    const generateBtnText = document.getElementById('generateBtnText');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const removeAllImagesBtn = document.getElementById('removeAllImagesBtn');
+    const geminiUploadArea = document.getElementById('geminiUploadArea');
+    const promptDescriptionLabel = document.getElementById('promptDescriptionLabel');
+    const promptTextarea = document.getElementById('prompt');
+    const firstSeparator = document.getElementById('firstSeparator');
+    
+    if (currentMode === 'gemini') {
+        // Gemini Mode - Hide OpenAI specific controls
+        aspectRatioGroup?.parentElement?.parentElement?.classList.add('hidden');
+        qualityGroup?.parentElement?.parentElement?.classList.add('hidden');
+        imageCountGroup?.parentElement?.classList.add('hidden');
+        optimizePromptBtn?.classList.add('hidden');
+        surpriseMeBtn?.classList.add('hidden');
+        addReferenceImageBtn?.parentElement?.classList.add('hidden');
+        imagePreviewContainer?.classList.add('hidden');
+        removeAllImagesBtn?.classList.add('hidden');
+        firstSeparator?.classList.add('hidden');
+        
+        // Show Gemini upload area
+        geminiUploadArea?.classList.remove('hidden');
+        
+        // Change prompt labels
+        if (promptDescriptionLabel) {
+            promptDescriptionLabel.setAttribute('data-translate', 'gemini.prompt.description');
+            promptDescriptionLabel.textContent = translate('gemini.prompt.description');
+        }
+        if (promptTextarea) {
+            promptTextarea.setAttribute('data-translate-placeholder', 'gemini.prompt.placeholder');
+            promptTextarea.placeholder = translate('gemini.prompt.placeholder');
+        }
+        
+        // Change button text
+        if (generateBtnText) {
+            generateBtnText.textContent = translate('generateButton.editImage');
+        }
+        
+        // Limit to max 3 images for Gemini
+        if (uploadedFiles.length > 3) {
+            uploadedFiles = uploadedFiles.slice(0, 3);
+        }
+        
+        // Update Gemini upload grid
+        updateGeminiUploadGrid();
+        
+    } else {
+        // OpenAI Mode - Show all controls
+        aspectRatioGroup?.parentElement?.parentElement?.classList.remove('hidden');
+        qualityGroup?.parentElement?.parentElement?.classList.remove('hidden');
+        imageCountGroup?.parentElement?.classList.remove('hidden');
+        optimizePromptBtn?.classList.remove('hidden');
+        surpriseMeBtn?.classList.remove('hidden');
+        addReferenceImageBtn?.parentElement?.classList.remove('hidden');
+        firstSeparator?.classList.remove('hidden');
+        
+        // Hide Gemini upload area
+        geminiUploadArea?.classList.add('hidden');
+        
+        // Restore prompt labels
+        if (promptDescriptionLabel) {
+            promptDescriptionLabel.setAttribute('data-translate', 'prompt.description');
+            promptDescriptionLabel.textContent = translate('prompt.description');
+        }
+        if (promptTextarea) {
+            promptTextarea.setAttribute('data-translate-placeholder', 'prompt.placeholder');
+            promptTextarea.placeholder = translate('prompt.placeholder');
+        }
+        
+        // Restore button text
+        if (generateBtnText) {
+            const imageCountBtn = document.querySelector('.image-count-btn.selected');
+            const imageCount = imageCountBtn ? parseInt(imageCountBtn.dataset.value) : 1;
+            generateBtnText.textContent = translate(imageCount > 1 ? 'generateButton.textPlural' : 'generateButton.textSingular');
+        }
+        
+        // Update OpenAI preview container
+        updateImagePreviews(uploadedFiles, imagePreviewContainer, removeAllImagesBtn, updateTotalCost);
+    }
+    
+    updateTotalCost();
+}
+
+// Update Gemini upload grid with 3 slots (first one larger)
+export function updateGeminiUploadGrid() {
+    const grid = document.getElementById('geminiUploadGrid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    // Create side container for slots 2 and 3
+    const sideContainer = document.createElement('div');
+    sideContainer.className = 'flex flex-col gap-3';
+    
+    for (let i = 0; i < 3; i++) {
+        const slot = document.createElement('div');
+        
+        // First slot is larger (flex-1 with fixed height), others are smaller and in side container
+        if (i === 0) {
+            slot.className = 'relative bg-white dark:bg-slate-800 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl flex-1 h-64 flex items-center justify-center overflow-hidden cursor-pointer hover:border-yellow-500 dark:hover:border-yellow-400 transition-colors';
+        } else {
+            slot.className = 'relative bg-white dark:bg-slate-800 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl aspect-square w-32 flex items-center justify-center overflow-hidden cursor-pointer hover:border-yellow-500 dark:hover:border-yellow-400 transition-colors';
+        }
+        
+        // Add opacity for unfilled optional slots (2 and 3)
+        if (i > 0 && !uploadedFiles[i]) {
+            slot.classList.add('opacity-60');
+        }
+        
+        if (uploadedFiles[i]) {
+            // Show uploaded image
+            const img = document.createElement('img');
+            if (uploadedFiles[i] instanceof File) {
+                img.src = URL.createObjectURL(uploadedFiles[i]);
+            } else {
+                const thumbFile = uploadedFiles[i].split('/').pop();
+                img.src = 'images/thumbs/' + thumbFile;
+            }
+            img.alt = translate('altText.referenceImage');
+            img.className = i === 0 ? 'max-w-full max-h-full object-contain' : 'w-full h-full object-cover';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition-transform hover:scale-110 z-10';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (uploadedFiles[i] instanceof File) {
+                    URL.revokeObjectURL(img.src);
+                }
+                uploadedFiles.splice(i, 1);
+                updateGeminiUploadGrid();
+                updateTotalCost();
+            };
+            
+            slot.appendChild(img);
+            slot.appendChild(removeBtn);
+        } else {
+            // Show upload placeholder
+            const iconSize = i === 0 ? 'w-16 h-16' : 'w-8 h-8';
+            const textSize = i === 0 ? 'text-sm' : 'text-xs';
+            const label = i === 0 ? translate('gemini.uploadArea.dragDrop') : '+';
+            
+            slot.innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-2 p-4 text-center">
+                    ${i === 0 ? `
+                        <svg class="${iconSize} text-yellow-500 dark:text-yellow-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span class="${textSize} text-gray-500 dark:text-gray-400" data-translate="gemini.uploadArea.dragDrop">${label}</span>
+                    ` : `
+                        <svg class="${iconSize} text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span class="${textSize} text-gray-400 dark:text-gray-500">${translate('label.optional')}</span>
+                    `}
+                </div>
+            `;
+            
+            slot.onclick = () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/png, image/jpeg';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        if (uploadedFiles.length < 3) {
+                            uploadedFiles.push(file);
+                            updateGeminiUploadGrid();
+                            updateTotalCost();
+                        }
+                    }
+                };
+                input.click();
+            };
+            
+            // Add drag and drop support
+            slot.ondragover = (e) => {
+                e.preventDefault();
+                slot.classList.add('border-yellow-500', 'dark:border-yellow-400', 'bg-yellow-50', 'dark:bg-yellow-900/10');
+                if (i > 0) slot.classList.remove('opacity-60');
+            };
+            
+            slot.ondragleave = (e) => {
+                e.preventDefault();
+                slot.classList.remove('border-yellow-500', 'dark:border-yellow-400', 'bg-yellow-50', 'dark:bg-yellow-900/10');
+                if (i > 0 && !uploadedFiles[i]) slot.classList.add('opacity-60');
+            };
+            
+            slot.ondrop = (e) => {
+                e.preventDefault();
+                slot.classList.remove('border-yellow-500', 'dark:border-yellow-400', 'bg-yellow-50', 'dark:bg-yellow-900/10');
+                if (i > 0 && !uploadedFiles[i]) slot.classList.add('opacity-60');
+                
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                if (files.length > 0 && uploadedFiles.length < 3) {
+                    uploadedFiles.push(files[0]);
+                    updateGeminiUploadGrid();
+                    updateTotalCost();
+                }
+            };
+        }
+        
+        // First slot goes directly into grid, others into side container
+        if (i === 0) {
+            grid.appendChild(slot);
+        } else {
+            sideContainer.appendChild(slot);
+        }
+    }
+    
+    // Add side container to grid
+    grid.appendChild(sideContainer);
+}
+
 export function updateTotalCost() {
+    // In Gemini mode, calculate based on input/output images
+    if (currentMode === 'gemini') {
+        const inputImageCost = uploadedFiles.length * 15; // 15 cents per input image
+        const outputImageCost = 3; // 3 cents for output image
+        const totalCost = inputImageCost + outputImageCost;
+        
+        const costLabel = document.getElementById('costLabel');
+        if (costLabel) {
+            costLabel.textContent = translate('label.apiCosts.prefix') + totalCost + translate('label.apiCosts.suffix');
+        }
+        return totalCost;
+    }
+    
     const qualityBtn = document.querySelector('.quality-btn.selected');
     const imageCountBtn = document.querySelector('.image-count-btn.selected');
     const qualityCosts = {

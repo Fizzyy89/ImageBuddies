@@ -3,6 +3,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/password_validation.php';
+require_once __DIR__ . '/db.php';
 
 // Prüfe Admin-Berechtigung
 if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
@@ -11,22 +12,15 @@ if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] 
     exit;
 }
 
-$jsonPath = __DIR__ . '/../database/users.json';
-if (!file_exists($jsonPath)) {
-    http_response_code(500);
-    echo json_encode(['error_key' => 'error.userManagement.userDbNotFound']);
-    exit;
-}
-
 $action = $_GET['action'] ?? '';
-$users = json_decode(file_get_contents($jsonPath), true);
 
 switch ($action) {
     case 'list':
         // Liste alle Benutzer auf (ohne Passwörter)
+        $rows = db_rows('SELECT username, role FROM users ORDER BY username COLLATE NOCASE');
         $userList = [];
-        foreach ($users as $username => $data) {
-            $userList[$username] = ['role' => $data['role']];
+        foreach ($rows as $r) {
+            $userList[$r['username']] = ['role' => $r['role']];
         }
         echo json_encode(['success' => true, 'users' => $userList]);
         break;
@@ -51,18 +45,17 @@ switch ($action) {
             exit;
         }
 
-        if (isset($users[$username])) {
+        $exists = db_row('SELECT id FROM users WHERE username = ?', [$username]);
+        if ($exists) {
             http_response_code(400);
             echo json_encode(['error_key' => 'error.userManagement.add.userExists']);
             exit;
         }
-
-        $users[$username] = [
-            'password' => password_hash($password, PASSWORD_DEFAULT),
-            'role' => $role
-        ];
-
-        file_put_contents($jsonPath, json_encode($users, JSON_PRETTY_PRINT));
+        db_exec('INSERT INTO users (username, password_hash, role) VALUES (?,?,?)', [
+            $username,
+            password_hash($password, PASSWORD_DEFAULT),
+            $role
+        ]);
         echo json_encode(['success' => true]);
         break;
 
@@ -72,7 +65,14 @@ switch ($action) {
         $newPassword = $data['password'] ?? '';
         $newRole = $data['role'] ?? null;
 
-        if (empty($username) || !isset($users[$username])) {
+        if (empty($username)) {
+            http_response_code(400);
+            echo json_encode(['error_key' => 'error.userManagement.userNotFound']);
+            exit;
+        }
+
+        $row = db_row('SELECT id FROM users WHERE username = ?', [$username]);
+        if ($row === null) {
             http_response_code(400);
             echo json_encode(['error_key' => 'error.userManagement.userNotFound']);
             exit;
@@ -86,14 +86,19 @@ switch ($action) {
                 echo json_encode(['error_key' => $validation['error_key']]);
                 exit;
             }
-            $users[$username]['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+            db_exec('UPDATE users SET password_hash = ? WHERE username = ?', [
+                password_hash($newPassword, PASSWORD_DEFAULT),
+                $username
+            ]);
         }
         
         if ($newRole !== null) {
-            $users[$username]['role'] = $newRole;
+            db_exec('UPDATE users SET role = ? WHERE username = ?', [
+                $newRole,
+                $username
+            ]);
         }
 
-        file_put_contents($jsonPath, json_encode($users, JSON_PRETTY_PRINT));
         echo json_encode(['success' => true]);
         break;
 
@@ -101,7 +106,14 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $username = $data['username'] ?? '';
 
-        if (empty($username) || !isset($users[$username])) {
+        if (empty($username)) {
+            http_response_code(400);
+            echo json_encode(['error_key' => 'error.userManagement.userNotFound']);
+            exit;
+        }
+
+        $row = db_row('SELECT id FROM users WHERE username = ?', [$username]);
+        if ($row === null) {
             http_response_code(400);
             echo json_encode(['error_key' => 'error.userManagement.userNotFound']);
             exit;
@@ -113,9 +125,24 @@ switch ($action) {
             echo json_encode(['error_key' => 'error.userManagement.delete.cannotDeleteSelf']);
             exit;
         }
-
-        unset($users[$username]);
-        file_put_contents($jsonPath, json_encode($users, JSON_PRETTY_PRINT));
+        // Reassign generations to a dedicated 'archived' user before delete (to satisfy FK)
+        $targetUserId = intval($row['id']);
+        $genCount = db_row('SELECT COUNT(*) AS c FROM generations WHERE user_id = ?', [$targetUserId]);
+        if (intval($genCount['c']) > 0) {
+            // Ensure 'archived' user exists
+            $arch = db_row('SELECT id FROM users WHERE username = ?', ['archived']);
+            if (!$arch) {
+                db_exec('INSERT INTO users (username, password_hash, role) VALUES (?,?,?)', [
+                    'archived',
+                    password_hash(bin2hex(random_bytes(8)), PASSWORD_DEFAULT),
+                    'user'
+                ]);
+                $arch = db_row('SELECT id FROM users WHERE username = ?', ['archived']);
+            }
+            $archivedId = intval($arch['id']);
+            db_exec('UPDATE generations SET user_id = ? WHERE user_id = ?', [$archivedId, $targetUserId]);
+        }
+        db_exec('DELETE FROM users WHERE username = ?', [$username]);
         echo json_encode(['success' => true]);
         break;
 
@@ -124,54 +151,24 @@ switch ($action) {
         $oldUsername = $data['oldUsername'] ?? '';
         $newUsername = $data['newUsername'] ?? '';
 
-        if (empty($oldUsername) || empty($newUsername) || !isset($users[$oldUsername])) {
+        if (empty($oldUsername) || empty($newUsername)) {
             http_response_code(400);
             echo json_encode(['error_key' => 'error.userManagement.userNotFound']);
             exit;
         }
-
-        if (isset($users[$newUsername])) {
+        $existsOld = db_row('SELECT id FROM users WHERE username = ?', [$oldUsername]);
+        if ($existsOld === null) {
+            http_response_code(400);
+            echo json_encode(['error_key' => 'error.userManagement.userNotFound']);
+            exit;
+        }
+        $existsNew = db_row('SELECT id FROM users WHERE username = ?', [$newUsername]);
+        if ($existsNew !== null) {
             http_response_code(400);
             echo json_encode(['error_key' => 'error.userManagement.rename.userExists']);
             exit;
         }
-
-        // Speichere die Benutzerdaten temporär
-        $userData = $users[$oldUsername];
-        
-        // Lösche alten Benutzer und erstelle neuen
-        unset($users[$oldUsername]);
-        $users[$newUsername] = $userData;
-
-        // Aktualisiere users.json
-        file_put_contents($jsonPath, json_encode($users, JSON_PRETTY_PRINT));
-
-        // CSV-Definitionen: Datei => User-Spaltenindex (0-basiert)
-        $csvFiles = [
-            __DIR__ . '/../database/image_log.csv' => 3, // 4. Spalte
-            __DIR__ . '/../database/statistics.csv' => 4  // 5. Spalte
-        ];
-
-        foreach ($csvFiles as $csvFile => $userCol) {
-            if (file_exists($csvFile)) {
-                $lines = file($csvFile, FILE_IGNORE_NEW_LINES);
-                $newLines = [];
-                foreach ($lines as $i => $line) {
-                    // Header nicht ändern
-                    if ($i === 0 && strpos($line, 'User') !== false) {
-                        $newLines[] = $line;
-                        continue;
-                    }
-                    $cols = explode(';', $line);
-                    if (isset($cols[$userCol]) && $cols[$userCol] === $oldUsername) {
-                        $cols[$userCol] = $newUsername;
-                    }
-                    $newLines[] = implode(';', $cols);
-                }
-                file_put_contents($csvFile, implode("\n", $newLines));
-            }
-        }
-
+        db_exec('UPDATE users SET username = ? WHERE username = ?', [$newUsername, $oldUsername]);
         echo json_encode(['success' => true]);
         break;
 

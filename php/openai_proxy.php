@@ -17,15 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $OPENAI_KEY = null;
-$envFile = __DIR__ . '/../database/.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos($line, 'OPENAI_KEY=') === 0) {
-            $OPENAI_KEY = substr($line, strlen('OPENAI_KEY='));
-            break;
-        }
-    }
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/crypto.php';
+$row = db_row('SELECT value FROM settings WHERE key = ?', ['openai_key_enc']);
+if ($row) {
+    $OPENAI_KEY = decrypt_secret($row['value']);
 }
 if (!$OPENAI_KEY) {
     http_response_code(500);
@@ -34,6 +30,8 @@ if (!$OPENAI_KEY) {
 }
 
 $endpoint = $_GET['endpoint'] ?? '';
+// Flag für Streaming-Endpunkte
+$isStream = ($endpoint === 'generations_stream');
 
 if ($endpoint === 'generations') {
     $url = 'https://api.openai.com/v1/images/generations';
@@ -49,6 +47,25 @@ if ($endpoint === 'generations') {
         $data['n'] = min(max(intval($data['n']), 1), 4); // Begrenze auf 1-4 Bilder
         $body = json_encode($data);
     }
+} elseif ($endpoint === 'generations_stream') {
+    // Streaming (SSE) für Image Generations
+    // Hinweis: Wir begrenzen Streaming aktuell auf n=1
+    $url = 'https://api.openai.com/v1/images/generations';
+    $headers = [
+        'Authorization: Bearer ' . $OPENAI_KEY,
+        'Content-Type: application/json',
+        'Accept: text/event-stream'
+    ];
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true) ?: [];
+    // Erzwinge Streaming-Parameter
+    $data['stream'] = true;
+    $data['n'] = 1; // Streaming zunächst nur für ein Bild
+    $partialImages = isset($data['partial_images']) ? intval($data['partial_images']) : 3;
+    $data['partial_images'] = min(max($partialImages, 0), 3);
+    // Sicherheitshalber einige erwartete Felder bestehen lassen
+    // (model, prompt, size, quality, moderation)
+    $body = json_encode($data);
 } elseif ($endpoint === 'edits') {
     $url = 'https://api.openai.com/v1/images/edits';
     $headers = [
@@ -108,8 +125,35 @@ if ($endpoint === 'generations') {
 }
 
 $ch = curl_init($url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+if ($isStream) {
+    // Server-Sent Events Header für Client setzen
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+    // Proxy-/Server-Buffering nach Möglichkeit deaktivieren
+    header('X-Accel-Buffering: no');
+    // Session freigeben, um Blockaden zu vermeiden
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+    // Output Buffer leeren
+    while (ob_get_level() > 0) {
+        @ob_end_flush();
+    }
+    @ob_implicit_flush(true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+    // Stream-Forwarding: eingehende SSE-Daten direkt an Client weiterreichen
+    curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $chunk) {
+        echo $chunk;
+        @flush();
+        return strlen($chunk);
+    });
+} else {
+    header('Content-Type: application/json');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+}
 
 if ($endpoint === 'edits') {
     // multipart/form-data weiterleiten
@@ -131,12 +175,25 @@ if ($endpoint === 'edits') {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
 }
 
-$response = curl_exec($ch);
-$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$error = curl_error($ch);
-curl_close($ch);
+if ($isStream) {
+    // Streaming-Exec: Ausgabe wurde bereits gestreamt
+    $ok = curl_exec($ch);
+    if ($ok === false) {
+        // Fehler als SSE-Event senden
+        $err = curl_error($ch);
+        echo "event: error\n";
+        echo 'data: ' . json_encode(['message' => 'stream_failed', 'detail' => $err]) . "\n\n";
+    }
+    curl_close($ch);
+    exit;
+} else {
+    $response = curl_exec($ch);
+    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+}
 
-if ($error) {
+if (!$isStream && $error) {
     http_response_code(500);
     // Log the specific cURL error for debugging if possible, but return a generic key to the client
     error_log("cURL Error in openai_proxy.php: " . $error); 

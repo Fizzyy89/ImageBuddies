@@ -147,8 +147,11 @@ export function initCustomization() {
     const apiKeyField = document.getElementById('apiKeyField');
     const openaiKeyInput = document.getElementById('openaiKey');
     const toggleApiKey = document.getElementById('toggleApiKey');
+    const geminiKeyInput = document.getElementById('geminiKey');
+    const toggleGeminiKey = document.getElementById('toggleGeminiKey');
     let isAdmin = false;
     let loadedApiKey = '';
+    let loadedGeminiKey = '';
 
     // Prüfe ob User Admin ist und zeige Button entsprechend
     fetch('php/session_auth.php?action=status')
@@ -164,7 +167,7 @@ export function initCustomization() {
             }
         });
 
-    // API Key Toggle (Show/Hide)
+    // API Key Toggle (Show/Hide) - OpenAI
     if (toggleApiKey && openaiKeyInput) {
         toggleApiKey.addEventListener('click', () => {
             if (openaiKeyInput.type === 'password') {
@@ -177,23 +180,52 @@ export function initCustomization() {
         });
     }
 
+    // API Key Toggle (Show/Hide) - Gemini
+    if (toggleGeminiKey && geminiKeyInput) {
+        toggleGeminiKey.addEventListener('click', () => {
+            if (geminiKeyInput.type === 'password') {
+                geminiKeyInput.type = 'text';
+                toggleGeminiKey.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>';
+            } else {
+                geminiKeyInput.type = 'password';
+                toggleGeminiKey.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+            }
+        });
+    }
+
     // Event Listener
     [customButton, mobileCustomButton].forEach(btn => {
         if (btn) {
             btn.addEventListener('click', () => {
                 customModal.classList.remove('hidden');
                 loadCustomization(featuresContainer);
-                if (isAdmin && openaiKeyInput) {
-                    fetch('php/get_openai_key.php')
-                        .then(res => res.json())
-                        .then(data => {
-                            openaiKeyInput.value = data.key ? data.key : '';
-                            loadedApiKey = data.key ? data.key : '';
-                        })
-                        .catch(() => {
-                            openaiKeyInput.value = '';
-                            loadedApiKey = '';
-                        });
+                if (isAdmin) {
+                    // Load OpenAI API Key
+                    if (openaiKeyInput) {
+                        fetch('php/api_keys.php?provider=openai')
+                            .then(res => res.json())
+                            .then(data => {
+                                openaiKeyInput.value = data.key ? data.key : '';
+                                loadedApiKey = data.key ? data.key : '';
+                            })
+                            .catch(() => {
+                                openaiKeyInput.value = '';
+                                loadedApiKey = '';
+                            });
+                    }
+                    // Load Gemini API Key
+                    if (geminiKeyInput) {
+                        fetch('php/api_keys.php?provider=gemini')
+                            .then(res => res.json())
+                            .then(data => {
+                                geminiKeyInput.value = data.key ? data.key : '';
+                                loadedGeminiKey = data.key ? data.key : '';
+                            })
+                            .catch(() => {
+                                geminiKeyInput.value = '';
+                                loadedGeminiKey = '';
+                            });
+                    }
                 }
             });
         }
@@ -223,8 +255,13 @@ export function initCustomization() {
     if (resetCustomForm) {
         resetCustomForm.addEventListener('click', () => {
             loadCustomization(featuresContainer);
-            if (isAdmin && openaiKeyInput) {
-                openaiKeyInput.value = loadedApiKey;
+            if (isAdmin) {
+                if (openaiKeyInput) {
+                    openaiKeyInput.value = loadedApiKey;
+                }
+                if (geminiKeyInput) {
+                    geminiKeyInput.value = loadedGeminiKey;
+                }
             }
         });
     }
@@ -249,10 +286,20 @@ export function initCustomization() {
             };
             let apiKeyChanged = false;
             let newApiKey = '';
-            if (isAdmin && openaiKeyInput) {
-                newApiKey = openaiKeyInput.value.trim();
-                apiKeyChanged = newApiKey !== loadedApiKey;
+            let geminiKeyChanged = false;
+            let newGeminiKey = '';
+            
+            if (isAdmin) {
+                if (openaiKeyInput) {
+                    newApiKey = openaiKeyInput.value.trim();
+                    apiKeyChanged = newApiKey !== loadedApiKey;
+                }
+                if (geminiKeyInput) {
+                    newGeminiKey = geminiKeyInput.value.trim();
+                    geminiKeyChanged = newGeminiKey !== loadedGeminiKey;
+                }
             }
+            
             try {
                 const response = await fetch('php/update_customization.php', {
                     method: 'POST',
@@ -263,11 +310,12 @@ export function initCustomization() {
                 });
                 const result = await response.json();
                 if (result.success) {
+                    // Update OpenAI API Key
                     if (isAdmin && apiKeyChanged) {
-                        await fetch('php/update_openai_key.php', {
+                        await fetch('php/api_keys.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ key: newApiKey })
+                            body: JSON.stringify({ provider: 'openai', key: newApiKey })
                         })
                         .then(res => res.json())
                         .then(res => {
@@ -279,6 +327,24 @@ export function initCustomization() {
                             }
                         })
                         .catch(() => showNotification('notification.apiKeySaveFailed', 'error'));
+                    }
+                    // Update Gemini API Key
+                    if (isAdmin && geminiKeyChanged) {
+                        await fetch('php/api_keys.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider: 'gemini', key: newGeminiKey })
+                        })
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.success) {
+                                loadedGeminiKey = newGeminiKey;
+                                showNotification('notification.geminiKeySaveSuccess', 'success');
+                            } else {
+                                showNotification(res.error || 'notification.geminiKeySaveFailed', 'error');
+                            }
+                        })
+                        .catch(() => showNotification('notification.geminiKeySaveFailed', 'error'));
                     }
                     // Aktualisiere die Seite ohne Neuladen
                     updatePageContent(data);

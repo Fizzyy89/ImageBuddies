@@ -21,70 +21,58 @@ if (!$batchId || !$imageNumber) {
     exit;
 }
 
-$logfile = dirname(__DIR__) . '/database/image_log.csv';
-if (!file_exists($logfile)) {
-    http_response_code(500);
-    echo json_encode(['error_key' => 'error.batchMainImage.logNotFound']);
-    exit;
-}
+require_once __DIR__ . '/db.php';
 
-$lines = file($logfile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-$header = null;
-$newLines = [];
-$batchImages = [];
-
-// 1. Sammle alle Batch-Bilder und ihre Zeilennummern
-foreach ($lines as $idx => $line) {
-    $parts = explode(';', $line);
-    $lineBatchId = $parts[8] ?? '';
-    $lineImageNumber = $parts[9] ?? '1';
-    if ($lineBatchId === $batchId) {
-        $batchImages[] = [
-            'idx' => $idx,
-            'line' => $line,
-            'parts' => $parts,
-            'imageNumber' => $lineImageNumber
-        ];
-    }
-}
-
-if (count($batchImages) < 2) {
+// DB-Bilder der Batch holen
+$rows = db_rows('SELECT g.id, g.image_number, u.username AS owner FROM generations g JOIN users u ON u.id=g.user_id WHERE g.deleted=0 AND g.batch_id = ?', [$batchId]);
+if (count($rows) < 2) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.batchMainImage.batchTooSmall']);
     exit;
 }
 
-// 2. Finde Bild 1 und das gewünschte Bild
-$mainIdx = null;
-$targetIdx = null;
-$mainUser = null;
-foreach ($batchImages as $b) {
-    if ($b['imageNumber'] == '1') {
-        $mainIdx = $b['idx'];
-        $mainUser = $b['parts'][3] ?? '';
-    }
-    if ($b['imageNumber'] == $imageNumber) {
-        $targetIdx = $b['idx'];
-    }
+// Finde current main (image_number=1) und target
+$currentMain = null;
+$target = null;
+foreach ($rows as $r) {
+    if (intval($r['image_number']) === 1) $currentMain = $r;
+    if (strval($r['image_number']) === strval($imageNumber)) $target = $r;
 }
-if ($mainIdx === null || $targetIdx === null) {
+if (!$currentMain || !$target) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.batchMainImage.imageNotFound']);
     exit;
 }
-// 3. Berechtigung prüfen: Nur Owner oder Admin
-if (!$isAdmin && $mainUser !== $currentUser) {
+// Berechtigung
+if (!$isAdmin && $currentMain['owner'] !== $currentUser) {
     http_response_code(403);
     echo json_encode(['error_key' => 'error.batchMainImage.noPermission']);
     exit;
 }
-// 4. Tausche imageNumber in den Zeilen
-$mainParts = explode(';', $lines[$mainIdx]);
-$targetParts = explode(';', $lines[$targetIdx]);
-$mainParts[9] = $imageNumber;
-$targetParts[9] = '1';
-$lines[$mainIdx] = implode(';', $mainParts);
-$lines[$targetIdx] = implode(';', $targetParts);
-// 5. Schreibe Datei neu
-file_put_contents($logfile, implode("\n", $lines) . "\n");
-echo json_encode(['success' => true]); 
+
+// Wenn Ziel bereits 1 ist, nichts tun
+if (intval($imageNumber) === 1) {
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+// Dreistufiger Swap mit temporärem Wert, um UNIQUE-Verstöße zu vermeiden
+try {
+    $targetNumber = intval($imageNumber);
+    $batchIdParam = $batchId;
+    $maxRow = db_row('SELECT COALESCE(MAX(image_number),0) AS m FROM generations WHERE batch_id = ?', [$batchIdParam]);
+    $tmpNumber = intval($maxRow['m']) + 100000; // garantiert frei
+
+    db_tx(function () use ($currentMain, $target, $targetNumber, $tmpNumber) {
+        // 1) current main -> tmp
+        db_exec('UPDATE generations SET image_number = ? WHERE id = ?', [$tmpNumber, $currentMain['id']]);
+        // 2) target -> 1
+        db_exec('UPDATE generations SET image_number = 1 WHERE id = ?', [$target['id']]);
+        // 3) tmp (former main) -> targetNumber
+        db_exec('UPDATE generations SET image_number = ? WHERE id = ?', [$targetNumber, $currentMain['id']]);
+    });
+    echo json_encode(['success' => true]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['error_key' => 'error.batchMainImage.swapFailed']);
+}

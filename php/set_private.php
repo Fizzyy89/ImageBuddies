@@ -6,42 +6,27 @@ if (!isset($_SESSION['user'])) {
     echo json_encode(['error_key' => 'error.notLoggedIn']);
     exit;
 }
+
+require_once __DIR__ . '/db.php';
+
 $data = json_decode(file_get_contents('php://input'), true);
 $filename = $data['filename'] ?? '';
-$private = $data['private'] ?? '0';
+$private = !empty($data['private']) ? 1 : 0;
 
-$logfile = dirname(__DIR__) . '/database/image_log.csv';
-if (!file_exists($logfile)) {
-    http_response_code(404);
-    echo json_encode(['error_key' => 'error.setPrivate.logNotFound']);
-    exit;
-}
-$lines = file($logfile, FILE_IGNORE_NEW_LINES);
-$newLines = [];
-$found = false;
-foreach ($lines as $line) {
-    $parts = explode(';', $line);
-    if (isset($parts[1]) && $parts[1] === $filename) {
-        // Nur Besitzer darf ändern
-        if ($parts[3] !== $_SESSION['user']) {
-            http_response_code(403);
-            echo json_encode(['error_key' => 'error.setPrivate.noPermission']);
-            exit;
-        }
-        // Setze das Feld 'private' (Index 6), fülle ggf. fehlende Felder auf
-        while (count($parts) < 7) $parts[] = '';
-        $parts[6] = $private ? '1' : '0';
-        $newLines[] = implode(';', $parts);
-        $found = true;
-    } else {
-        $newLines[] = $line;
-    }
-}
-if ($found) {
-    file_put_contents($logfile, implode("\n", $newLines) . "\n");
-    echo json_encode(['success' => true]);
-} else {
+// Prüfe Besitz (oder Admin)
+$row = db_row('SELECT g.id, u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.filename = ?', [$filename]);
+if ($row === null) {
     http_response_code(404);
     echo json_encode(['error_key' => 'error.setPrivate.imageNotFound']);
+    exit;
 }
-?> 
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+if (!$isAdmin && $row['owner'] !== $_SESSION['user']) {
+    http_response_code(403);
+    echo json_encode(['error_key' => 'error.setPrivate.noPermission']);
+    exit;
+}
+
+db_exec('UPDATE generations SET private = ? WHERE id = ?', [$private, $row['id']]);
+echo json_encode(['success' => true]);
+?>

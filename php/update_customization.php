@@ -9,6 +9,8 @@ if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] 
     exit;
 }
 
+require_once __DIR__ . '/db.php';
+
 // Get POST data
 $data = json_decode(file_get_contents('php://input'), true);
 if (!$data) {
@@ -27,12 +29,11 @@ if (isset($data['language'])) {
     }
 }
 
-// Update customization.json
-$customizationFile = __DIR__ . '/../database/customization.json';
-if (!file_put_contents($customizationFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))) {
-    http_response_code(500);
-    echo json_encode(['error_key' => 'error.customization.updateFailed']);
-    exit;
-}
+// Save to settings table
+$json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+db_exec('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', [
+    'customization',
+    $json
+]);
 
-echo json_encode(['success' => true]); 
+echo json_encode(['success' => true]);

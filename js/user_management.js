@@ -58,6 +58,12 @@ export function initUserManagement() {
             const password = addUserForm.password.value;
             const role = addUserForm.role.value;
 
+            // Clientseitige Minimalprüfung
+            if (!password || password.length < 8) {
+                showNotification(translate('error.password.tooShort'), 'error');
+                return;
+            }
+
             try {
                 const response = await fetch('php/user_management.php?action=add', {
                     method: 'POST',
@@ -73,7 +79,8 @@ export function initUserManagement() {
                     addUserForm.reset();
                     loadUsers(); // Liste aktualisieren
                 } else {
-                    showNotification(data.error || translate('error.addUserFailed'), 'error');
+                    const msg = data.error_key ? translate(data.error_key) : (data.error || translate('error.addUserFailed'));
+                    showNotification(msg, 'error');
                 }
             } catch (error) {
                 showNotification(translate('error.addUserFailed'), 'error');
@@ -91,7 +98,8 @@ async function loadUsers() {
             currentUsers = data.users;
             updateUserList();
         } else {
-            showNotification(data.error || translate('error.loadUsersFailed'), 'error');
+            const msg = data.error_key ? translate(data.error_key) : (data.error || translate('error.loadUsersFailed'));
+            showNotification(msg, 'error');
         }
     } catch (error) {
         showNotification(translate('error.loadUsersFailed'), 'error');
@@ -178,7 +186,8 @@ async function updateUserRole(username, newRole) {
             showNotification(translate('notification.roleUpdateSuccess'), 'success');
             loadUsers(); // Liste aktualisieren
         } else {
-            showNotification(data.error || translate('error.roleUpdateFailed'), 'error');
+            const msg = data.error_key ? translate(data.error_key) : (data.error || translate('error.roleUpdateFailed'));
+            showNotification(msg, 'error');
         }
     } catch (error) {
         showNotification(translate('error.roleUpdateFailed'), 'error');
@@ -202,7 +211,8 @@ async function promptPasswordChange(username) {
         if (data.success) {
             showNotification(translate('notification.passwordChangeSuccess'), 'success');
         } else {
-            showNotification(data.error || translate('error.passwordChangeFailed'), 'error');
+            const msg = data.error_key ? translate(data.error_key) : (data.error || translate('error.passwordChangeFailed'));
+            showNotification(msg, 'error');
         }
     } catch (error) {
         showNotification(translate('error.passwordChangeFailed'), 'error');
@@ -226,7 +236,8 @@ async function deleteUser(username) {
             showNotification(translate('notification.userDeleteSuccess'), 'success');
             loadUsers(); // Liste aktualisieren
         } else {
-            showNotification(data.error || translate('error.userDeleteFailed'), 'error');
+            const msg = data.error_key ? translate(data.error_key) : (data.error || translate('error.userDeleteFailed'));
+            showNotification(msg, 'error');
         }
     } catch (error) {
         showNotification(translate('error.userDeleteFailed'), 'error');
@@ -251,7 +262,8 @@ async function promptUserRename(username) {
             showNotification(translate('notification.userRenameSuccess'), 'success');
             loadUsers(); // Liste aktualisieren
         } else {
-            showNotification(data.error || translate('error.userRenameFailed'), 'error');
+            const msg = data.error_key ? translate(data.error_key) : (data.error || translate('error.userRenameFailed'));
+            showNotification(msg, 'error');
         }
     } catch (error) {
         showNotification(translate('error.userRenameFailed'), 'error');

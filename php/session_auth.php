@@ -2,6 +2,8 @@
 session_start();
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/db.php';
+
 $action = $_GET['action'] ?? '';
 
 if ($action === 'login') {
@@ -9,28 +11,19 @@ if ($action === 'login') {
     $user = $data['user'] ?? '';
     $pass = $data['pass'] ?? '';
 
-    // Lade Benutzerliste aus JSON-Datei
-    $jsonPath = __DIR__ . '/../database/users.json';
-    if (!file_exists($jsonPath)) {
-        die(json_encode(['error_key' => 'error.auth.userDbNotFound']));
-    }
-    $USERS = json_decode(file_get_contents($jsonPath), true);
-    if ($USERS === null) {
-        die(json_encode(['error_key' => 'error.auth.userDbReadError']));
-    }
-
-    // Prüfe Benutzer
-    if (!isset($USERS[$user])) {
+    // Prüfe Benutzer aus SQLite
+    $row = db_row('SELECT id, username, password_hash, role FROM users WHERE username = ?', [$user]);
+    if ($row === null) {
         echo json_encode(['success' => false, 'error_key' => 'error.auth.unknownUser']);
         exit;
     }
-    if (!password_verify($pass, $USERS[$user]['password'])) {
+    if (!password_verify($pass, $row['password_hash'])) {
         echo json_encode(['success' => false, 'error_key' => 'error.auth.incorrectPassword']);
         exit;
     }
-    $_SESSION['user'] = $user;
-    $_SESSION['role'] = $USERS[$user]['role'];
-    echo json_encode(['success' => true, 'role' => $USERS[$user]['role']]);
+    $_SESSION['user'] = $row['username'];
+    $_SESSION['role'] = $row['role'];
+    echo json_encode(['success' => true, 'role' => $row['role']]);
     exit;
 } elseif ($action === 'logout') {
     session_destroy();

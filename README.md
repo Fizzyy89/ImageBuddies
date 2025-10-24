@@ -1,6 +1,6 @@
 # ImageBuddies - Self-Hosted OpenAI Image Generation UI
 
-ImageBuddies is a user-friendly web interface that allows groups of friends or small teams to easily generate images using OpenAI's latest `gpt-image-1` image generation model. It's designed to be self-hosted on any webspace with PHP support, requiring no complex backend setup or databases.
+ImageBuddies is a user-friendly web interface that allows groups of friends or small teams to easily generate images using OpenAI's latest `gpt-image-1` image generation model. It's designed to be self-hosted on any webspace with PHP support and uses a self-contained SQLite database that is created automatically on first run (no external DB required).
 
 ![generate](https://github.com/user-attachments/assets/6f77748c-f461-4e94-8f2c-a0aa513ac18d)
 
@@ -9,11 +9,12 @@ The core idea is to provide a shared, self-managed platform for creative image g
 ## ✨ Key Features
 
 * **🚀 Easy to Host**:
-    * No database needed! Simply deploy on any web server with PHP.
+    * No external database needed – uses SQLite automatically. Simply deploy on any web server with PHP.
 
-* **🤖 OpenAI Integration**:
+* **🤖 OpenAI & Gemini Integration**:
     * Generate images using OpenAI's image generation models (e.g., `gpt-image-1`).
-    * Edit existing images using prompts.
+    * Optional image editing mode powered by Google Gemini 2.5 Flash Image (Nano Banana).
+    * Toggle between image generation (OpenAI) and image editing (Gemini) directly in the UI.
     * Automatic prompt optimization feature using GPT.
  
 * **👥 User Management**:
@@ -71,12 +72,14 @@ The core idea is to provide a shared, self-managed platform for creative image g
 ## 🔧 Technical Overview
 
 * **Frontend**: HTML, CSS (Tailwind CSS), Vanilla JavaScript (modular).
-* **Backend**: PHP (for API proxy, user auth, file management, and basic CSV logging).
+* **Backend**: PHP with PDO/SQLite (for API proxy, user auth, file management, and database access).
 * **Storage**:
-    * Images are stored on the server.
-    * User data and customization settings are stored in JSON files in a `database` directory.
-    * Image metadata and basic statistics are logged to CSV files in the `database` directory.
-    * The OpenAI API key is stored in a `.env` file within the `database` directory.
+    * Images are stored on the server (`/images`).
+    * A single SQLite database file (`/database/app.sqlite3`) stores:
+        * `users` (accounts and roles)
+        * `settings` (includes customization JSON, encrypted API keys, feature flags like `gemini_available`)
+        * `generations` (all image metadata, costs, batch info, and a `deleted` flag)
+    * API keys (OpenAI, Gemini) are encrypted at rest and managed via the admin UI.
 
 ## ⚠️ Security Notice
 
@@ -84,7 +87,7 @@ ImageBuddies is primarily designed for use in **controlled environments**, such 
 
 If you choose to deploy ImageBuddies on a **publicly accessible web server**, please be aware of the following:
 
-* **Sensitive Data:** The `/database` directory contains sensitive data, most notably the OpenAI API key (in the `.env` file).
+* **Sensitive Data:** The `/database` directory contains sensitive data, most notably the SQLite database file (`app.sqlite3`) and the encryption key file (`.secret.key`).
 * **Apache Web Server Protection:** An `.htaccess` file is included within the `/database` directory. This file is intended to block direct web access to the directory's contents **when using an Apache web server**. Ensure your Apache server is configured to allow `.htaccess` files (e.g., `AllowOverride All`).
 * **Other Web Servers (Nginx, IIS, etc.):** The included `.htaccess` file **will not provide protection** on web servers other than Apache. If you are using Nginx, IIS, or another server type, you **must manually configure your server** to prevent direct web access to the `/database` directory. Consult your web server's documentation for instructions (e.g., search "deny access to folder nginx" or "request filtering iis").
 * **Your Responsibility:** Ultimately, securing the `/database` directory and your server configuration is **your responsibility**, especially in a public-facing environment. Failure to do so can expose sensitive information.
@@ -100,7 +103,7 @@ Future versions may include more robust out-of-the-box security for public deplo
     * Navigate to the application in your web browser.
     * You will be guided through a one-time setup process to:
         * Create an admin user account.
-        * Enter your OpenAI API key.
+        * Enter your API keys (OpenAI, optionally Gemini). Keys are encrypted and stored in the database and can be changed later in the admin UI.
         * Configure basic site settings (like enabling/disabling view-only mode).
 5.  **Login**: Log in with your newly created admin credentials.
 6.  **Manage (Optional)**:
@@ -120,6 +123,8 @@ Future versions may include more robust out-of-the-box security for public deplo
 * `curl` extension for PHP (for OpenAI API communication).
 * `gd` extension for PHP (for thumbnail generation).
 * `zip` extension for PHP (for downloading image batches).
+* `pdo_sqlite` extension for PHP (for SQLite database access).
+* One of: `sodium` (libsodium) or `openssl` extensions for PHP (for encrypting API keys at rest).
 * Write permissions for the `database` and `images` directories.
 * An OpenAI API key with access to the latest image generation models. You need to verify your organization within the OpenAI dashboard to get this access. This is easy and fast.
 

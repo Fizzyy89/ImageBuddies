@@ -56,6 +56,39 @@ foreach ($rows as $r) {
         continue;
     }
     $size = $r['size'];
+    // Normalisiere Size auf Ratio-Strings (z.B. 1024x1536 -> 2:3)
+    if (is_string($size)) {
+        if (strpos($size, 'x') !== false) {
+            $parts = explode('x', strtolower($size));
+            $w = floatval($parts[0]);
+            $h = floatval($parts[1] ?? 0);
+            if ($w > 0 && $h > 0) {
+                $ratio = $w / $h;
+                // Mappe auf erlaubte Ratios
+                $allowed = [
+                    '1:1' => 1.0,
+                    '2:3' => 2/3,
+                    '3:2' => 3/2,
+                    '3:4' => 3/4,
+                    '4:3' => 4/3,
+                    '4:5' => 4/5,
+                    '5:4' => 5/4,
+                    '9:16' => 9/16,
+                    '16:9' => 16/9,
+                    '21:9' => 21/9
+                ];
+                $best = '1:1';
+                $bestDiff = PHP_FLOAT_MAX;
+                foreach ($allowed as $k => $v) {
+                    $d = abs($ratio - $v);
+                    if ($d < $bestDiff) { $bestDiff = $d; $best = $k; }
+                }
+                $size = $best;
+            }
+        } elseif (strpos($size, ':') !== false) {
+            // Bereits Ratio-String
+        }
+    }
     $quality = $r['quality'];
     $refCount = intval($r['ref_image_count']);
     $user = $r['username'];

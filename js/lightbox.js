@@ -1,5 +1,5 @@
 import { translate, currentLanguage } from './i18n.js';
-import { uploadedFiles, updateImagePreviews } from './prompt.js';
+import { uploadedFiles, updateImagePreviews, updateGeminiUploadGrid, updateTotalCost } from './prompt.js';
 // Lightbox-Modul
 // Verantwortlich für Lightbox, Bildanzeige, Navigation, Metadaten, Privat-Status, Löschen, Download, URL-Kopieren und Prompt-Kopieren
 
@@ -233,6 +233,8 @@ export function initLightbox({
             copyPromptBtn.classList.add('hidden');
             reusePromptBtn.classList.add('hidden');
         }
+        // Sicherstellen, dass der Gemini-Button korrekt angezeigt wird
+        ensureGeminiEditButton(imgObj);
         // Benutzer und Datum
         if (imgObj.user) {
             let dateStr = '';
@@ -275,9 +277,23 @@ export function initLightbox({
             lightboxMeta.classList.remove('hidden');
             // Qualität und Seitenverhältnis
             const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high', 'gemini': 'settings.quality.gemini' };
-            const aspectRatioLabels = { '1024x1024': '1:1', '1024x1536': '2:3', '1536x1024': '3:2' };
             const quality = translate(qualityKeyMap[imgObj.quality] || imgObj.quality);
-            const aspectRatio = aspectRatioLabels[imgObj.size] || imgObj.size;
+            // imgObj.size kann Ratio ("16:9") oder Dimension ("1024x1536") sein
+            let aspectRatio = imgObj.size;
+            if (typeof aspectRatio === 'string' && aspectRatio.includes('x')) {
+                const [w, h] = aspectRatio.toLowerCase().split('x');
+                const wf = parseFloat(w), hf = parseFloat(h);
+                if (wf > 0 && hf > 0) {
+                    const r = wf / hf;
+                    const allowed = { '1:1': 1.0, '2:3': 2/3, '3:2': 3/2 };
+                    let best = '1:1', bestDiff = Infinity;
+                    for (const [k, v] of Object.entries(allowed)) {
+                        const d = Math.abs(r - v);
+                        if (d < bestDiff) { best = k; bestDiff = d; }
+                    }
+                    aspectRatio = best;
+                }
+            }
             const qualityColors = {
                 [translate('settings.quality.low')]: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
                 [translate('settings.quality.medium')]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400',
@@ -431,20 +447,85 @@ export function initLightbox({
     // --- Lightbox Buttons ---
     if (lightboxDownloadBtn) {
         lightboxDownloadBtn.onclick = null;
+        
+        // Erstelle Download-Dropdown-Container (initial versteckt)
+        const downloadDropdown = document.createElement('div');
+        downloadDropdown.id = 'downloadDropdown';
+        downloadDropdown.className = 'hidden absolute top-full right-0 mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 py-2 z-50 min-w-[180px]';
+        downloadDropdown.innerHTML = `
+            <button id="downloadSingleBtn" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                <span data-translate="lightbox.download.single">Dieses Bild</span>
+            </button>
+            <button id="downloadBatchBtn" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span data-translate="lightbox.download.batch">Alle Variationen</span>
+            </button>
+        `;
+        lightboxDownloadBtn.parentElement.style.position = 'relative';
+        lightboxDownloadBtn.parentElement.appendChild(downloadDropdown);
+
         lightboxDownloadBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const currentImage = getCurrentLightboxImage();
             if (!currentImage) return;
+
+            // Prüfe ob Batch mit mehreren Bildern
+            const isBatch = currentImage.batchId && allImages.filter(img => img.batchId === currentImage.batchId).length > 1;
+            
+            if (isBatch) {
+                // Zeige Dropdown
+                downloadDropdown.classList.remove('hidden');
+            } else {
+                // Direkter Download für Einzelbilder
+                downloadSingleImage(currentImage);
+            }
+        });
+
+        // Event-Handler für Dropdown-Optionen
+        document.getElementById('downloadSingleBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadDropdown.classList.add('hidden');
+            const currentImage = getCurrentLightboxImage();
+            if (currentImage) downloadSingleImage(currentImage);
+        });
+
+        document.getElementById('downloadBatchBtn').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            downloadDropdown.classList.add('hidden');
+            const currentImage = getCurrentLightboxImage();
+            if (!currentImage || !currentImage.batchId) return;
+            
+            try {
+                // Download Batch als ZIP
+                window.location.href = `php/zip_download.php?batchId=${encodeURIComponent(currentImage.batchId)}`;
+            } catch (error) {
+                console.error('Batch download failed:', error);
+                alert(translate('lightbox.error.downloadBatchFailed'));
+            }
+        });
+
+        // Schließe Dropdown bei Klick außerhalb
+        document.addEventListener('click', () => {
+            downloadDropdown.classList.add('hidden');
+        });
+
+        // Hilfsfunktion für einzelnen Bild-Download
+        function downloadSingleImage(image) {
             const link = document.createElement('a');
-            link.href = currentImage.file;
-            const filename = currentImage.prompt ?
-                currentImage.prompt.substring(0, 30).replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') :
+            link.href = image.file;
+            const filename = image.prompt ?
+                image.prompt.substring(0, 30).replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') :
                 'generated_image';
             link.download = `${filename}.png`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        });
+        }
     }
     if (lightboxOpenNewTabBtn) {
         lightboxOpenNewTabBtn.onclick = null;
@@ -505,6 +586,9 @@ export function initLightbox({
             const currentIndex = currentGalleryIndex;
             const imgObj = currentIndex >= 0 ? galleryImages[currentIndex] : null;
             if (!imgObj?.prompt) return;
+            // Erzwinge OpenAI-Modus
+            const openaiBtn = document.getElementById('modeOpenAI');
+            if (openaiBtn) openaiBtn.click();
             const promptInput = document.getElementById('prompt');
             promptInput.value = imgObj.prompt;
             if (imgObj.size) {
@@ -573,6 +657,64 @@ export function initLightbox({
             if (optimizeBtn) optimizeBtn.disabled = !promptInput.value.trim();
         });
     }
+
+    // Robuste Prüfung über DB-Flag und dynamisches Einfügen des Gemini-Buttons
+    async function ensureGeminiEditButton(imgObj) {
+        try {
+            const res = await fetch('php/get_customization.php');
+            const cfg = await res.json();
+            const available = !!(cfg && cfg.geminiAvailable === true);
+            const actionsContainer = reusePromptBtn ? reusePromptBtn.parentElement : null;
+            if (!actionsContainer) return;
+            // Vorhandenen Button entfernen, um Duplikate zu vermeiden
+            const existing = actionsContainer.querySelector('#editWithGeminiBtn');
+            if (existing) existing.remove();
+            if (!available) return;
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.id = 'editWithGeminiBtn';
+            editBtn.className = 'flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-yellow-900 bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-500/20 dark:hover:bg-yellow-500/30 dark:text-yellow-300 rounded-lg transition-all duration-200';
+            editBtn.innerHTML = `
+                <span class="text-base">🍌</span>
+                <span data-translate="lightbox.actions.editWithGemini">${translate('lightbox.actions.editWithGemini')}</span>
+            `;
+            actionsContainer.appendChild(editBtn);
+
+            editBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!imgObj) return;
+                // Wechsel in Gemini-Modus
+                const geminiBtn = document.getElementById('modeGemini');
+                if (geminiBtn) geminiBtn.click();
+                // Prompt nicht übernehmen
+                const promptInput = document.getElementById('prompt');
+                if (promptInput) promptInput.value = '';
+                // Aktuelles Bild als Eingabebild setzen
+                try {
+                    const response = await fetch(imgObj.file);
+                    const blob = await response.blob();
+                    const file = new File([blob], 'edit.png', { type: 'image/png' });
+                    uploadedFiles.length = 0;
+                    uploadedFiles.push(file);
+                    updateGeminiUploadGrid();
+                    updateTotalCost();
+                } catch (err) {
+                    console.error('Failed to prepare image for Gemini:', err);
+                }
+                // Lightbox schließen
+                lightbox.classList.add('hidden');
+                lightbox.classList.remove('active');
+                lightboxImage.src = '#';
+                setCurrentGalleryIndex(-1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (promptInput) promptInput.focus();
+            });
+        } catch (e) {
+            // Ignoriere Fehler still – Button wird dann einfach nicht angezeigt
+        }
+    }
+
+    // (Der Gemini-Button wird dynamisch in ensureGeminiEditButton() verwaltet)
     if (deleteImageBtn) {
         deleteImageBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -740,10 +882,23 @@ export function initLightbox({
             lightboxMeta.classList.remove('hidden');
             
             // Qualität und Seitenverhältnis
-            const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high' };
-            const aspectRatioLabels = { '1024x1024': '1:1', '1024x1536': '2:3', '1536x1024': '3:2' };
+            const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high', 'gemini': 'settings.quality.gemini' };
             const quality = translate(qualityKeyMap[imgObj.quality] || imgObj.quality);
-            const aspectRatio = aspectRatioLabels[imgObj.size] || imgObj.size;
+            let aspectRatio = imgObj.size;
+            if (typeof aspectRatio === 'string' && aspectRatio.includes('x')) {
+                const [w, h] = aspectRatio.toLowerCase().split('x');
+                const wf = parseFloat(w), hf = parseFloat(h);
+                if (wf > 0 && hf > 0) {
+                    const r = wf / hf;
+                    const allowed = { '1:1': 1.0, '2:3': 2/3, '3:2': 3/2 };
+                    let best = '1:1', bestDiff = Infinity;
+                    for (const [k, v] of Object.entries(allowed)) {
+                        const d = Math.abs(r - v);
+                        if (d < bestDiff) { best = k; bestDiff = d; }
+                    }
+                    aspectRatio = best;
+                }
+            }
             const qualityColors = {
                 [translate('settings.quality.low')]: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
                 [translate('settings.quality.medium')]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400',

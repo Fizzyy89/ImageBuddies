@@ -80,6 +80,14 @@ function translatePage() {
             element.setAttribute('aria-label', translations[key]);
         }
     });
+
+    // Handle data-translate-label attributes (for optgroup labels)
+    document.querySelectorAll('[data-translate-label]').forEach(element => {
+        const key = element.getAttribute('data-translate-label');
+        if (translations[key]) {
+            element.label = translations[key];
+        }
+    });
 }
 
 // Change language

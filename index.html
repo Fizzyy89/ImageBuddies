@@ -63,6 +63,12 @@
                     </div>
                     <span id="mobileUserName" class="text-gray-700 dark:text-gray-300 font-medium"></span>
                 </div>
+                <button id="mobileMyImagesBtn" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm3 10l2.5-3 1.5 2 2-3L17 16H7z"/>
+                    </svg>
+                    <span data-translate="userActions.myImages">My Images</span>
+                </button>
                 <button id="mobileChangePasswordBtn" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
                     <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
@@ -190,6 +196,12 @@
                             </button>
                             <!-- Dropdown Menu -->
                             <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 py-2 z-50">
+                                <button id="myImagesBtn" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-slate-700 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm3 10l2.5-3 1.5 2 2-3L17 16H7z"/>
+                                    </svg>
+                                    <span data-translate="userActions.myImages">My Images</span>
+                                </button>
                                 <button id="changePasswordBtn" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-slate-700 flex items-center gap-2">
                                     <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
@@ -277,6 +289,33 @@
                             </label>
                             <div id="geminiUploadGrid" class="flex gap-3">
                                 <!-- Upload slots will be inserted dynamically -->
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-yellow-500 dark:text-yellow-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                                    </svg>
+                                    <span data-translate="settings.aspectRatio">Seitenverhältnis</span>
+                                </label>
+                                <select id="geminiAspectRatio" class="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm">
+                                    <option value="" data-translate="gemini.aspectRatio.auto">Automatisch (wie Eingabebild)</option>
+                                    <optgroup data-translate-label="gemini.aspectRatio.group.square" label="Quadratisch">
+                                        <option value="1:1" data-translate="gemini.aspectRatio.option.1_1">1:1 — Quadrat · 1024×1024</option>
+                                    </optgroup>
+                                    <optgroup data-translate-label="gemini.aspectRatio.group.portrait" label="Hochformat">
+                                        <option value="2:3" data-translate="gemini.aspectRatio.option.2_3">2:3 — Standard · 832×1248</option>
+                                        <option value="3:4" data-translate="gemini.aspectRatio.option.3_4">3:4 — Klassisch · 864×1184</option>
+                                        <option value="4:5" data-translate="gemini.aspectRatio.option.4_5">4:5 — Portrait · 896×1152</option>
+                                        <option value="9:16" data-translate="gemini.aspectRatio.option.9_16">9:16 — Smartphone · 768×1344</option>
+                                    </optgroup>
+                                    <optgroup data-translate-label="gemini.aspectRatio.group.landscape" label="Querformat">
+                                        <option value="3:2" data-translate="gemini.aspectRatio.option.3_2">3:2 — Standard · 1248×832</option>
+                                        <option value="4:3" data-translate="gemini.aspectRatio.option.4_3">4:3 — Klassisch · 1184×864</option>
+                                        <option value="5:4" data-translate="gemini.aspectRatio.option.5_4">5:4 — Kompakt · 1152×896</option>
+                                        <option value="16:9" data-translate="gemini.aspectRatio.option.16_9">16:9 — Widescreen · 1344×768</option>
+                                        <option value="21:9" data-translate="gemini.aspectRatio.option.21_9">21:9 — Cinematic · 1536×672</option>
+                                    </optgroup>
+                                </select>
                             </div>
                         </div>
                         
@@ -785,29 +824,37 @@
 
     <!-- Statistics Modal -->
     <div id="statsModal" class="fixed inset-0 z-[2000] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-[120rem] w-full max-h-[90vh] overflow-hidden">
-                <!-- Header -->
-                <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-800">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-indigo-500 rounded-2xl shadow-lg shadow-indigo-500/20">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            <div class="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-[120rem] w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-700/50 animate-modal-scale">
+                <!-- Header with Gradient -->
+                <div class="relative overflow-hidden">
+                    <!-- Gradient Background -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 dark:from-blue-500/5 dark:via-indigo-500/5 dark:to-purple-500/5"></div>
+                    
+                    <div class="relative flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl blur opacity-40"></div>
+                                <div class="relative p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400" data-translate="statisticsModal.title">
+                                    Usage Statistics
+                                </h2>
+                                <p class="text-gray-600 dark:text-gray-400 text-sm mt-0.5" data-translate="statisticsModal.subtitle">Detailed overview of image generation</p>
+                            </div>
+                        </div>
+                        <button id="closeStatsModal" class="group p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <svg class="w-6 h-6 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
-                        </div>
-                        <div>
-                            <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-500 dark:text-white" data-translate="statisticsModal.title">
-                                Usage Statistics
-                            </h2>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm mt-0.5" data-translate="statisticsModal.subtitle">Detailed overview of image generation</p>
-                        </div>
+                        </button>
                     </div>
-                    <button id="closeStatsModal" class="p-2 text-gray-400 hover:text-gray-500 focus:outline-none">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
                 </div>
 
                 <!-- Content -->
@@ -957,29 +1004,37 @@
 
     <!-- User Management Modal -->
     <div id="userModal" class="fixed inset-0 z-[2000] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                <!-- Header -->
-                <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-800">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-indigo-500 rounded-2xl shadow-lg shadow-indigo-500/20">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            <div class="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-700/50 animate-modal-scale">
+                <!-- Header with Gradient -->
+                <div class="relative overflow-hidden">
+                    <!-- Gradient Background -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 dark:from-emerald-500/5 dark:via-teal-500/5 dark:to-cyan-500/5"></div>
+                    
+                    <div class="relative flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl blur opacity-40"></div>
+                                <div class="relative p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-400 dark:via-teal-400 dark:to-cyan-400" data-translate="userManagementModal.title">
+                                    User Management
+                                </h2>
+                                <p class="text-gray-600 dark:text-gray-400 text-sm mt-0.5" data-translate="userManagementModal.subtitle">Manage users and their permissions</p>
+                            </div>
+                        </div>
+                        <button id="closeUserModal" class="group p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <svg class="w-6 h-6 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
-                        </div>
-                        <div>
-                            <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-500 dark:text-white" data-translate="userManagementModal.title">
-                                User Management
-                            </h2>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm mt-0.5" data-translate="userManagementModal.subtitle">Manage users and their permissions</p>
-                        </div>
+                        </button>
                     </div>
-                    <button id="closeUserModal" class="p-2 text-gray-400 hover:text-gray-500 focus:outline-none">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
                 </div>
 
                 <!-- Content -->
@@ -1041,29 +1096,37 @@
 
     <!-- Password Change Modal -->
     <div id="passwordModal" class="fixed inset-0 z-[2000] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-                <!-- Header -->
-                <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-800">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-indigo-500 rounded-2xl shadow-lg shadow-indigo-500/20">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            <div class="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-200/50 dark:border-slate-700/50 animate-modal-scale">
+                <!-- Header with Gradient -->
+                <div class="relative overflow-hidden">
+                    <!-- Gradient Background -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 dark:from-amber-500/5 dark:via-orange-500/5 dark:to-red-500/5"></div>
+                    
+                    <div class="relative flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl blur opacity-40"></div>
+                                <div class="relative p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-lg">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 dark:from-amber-400 dark:via-orange-400 dark:to-red-400" data-translate="passwordModal.title">
+                                    Change Password
+                                </h2>
+                                <p class="text-gray-600 dark:text-gray-400 text-sm mt-0.5" data-translate="passwordModal.subtitle">Change your login password</p>
+                            </div>
+                        </div>
+                        <button id="closePasswordModal" class="group p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
-                        </div>
-                        <div>
-                            <h2 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-500 dark:text-white" data-translate="passwordModal.title">
-                                Change Password
-                            </h2>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm mt-0.5" data-translate="passwordModal.subtitle">Change your login password</p>
-                        </div>
+                        </button>
                     </div>
-                    <button id="closePasswordModal" class="p-2 text-gray-400 hover:text-gray-500 focus:outline-none">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
                 </div>
 
                 <!-- Content -->
@@ -1103,42 +1166,50 @@
 
     <!-- Customization Modal -->
     <div id="customModal" class="fixed inset-0 z-[2000] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-[120rem] w-full max-h-[90vh] overflow-hidden">
-                <!-- Header -->
-                <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-800">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-indigo-500 rounded-2xl shadow-lg shadow-indigo-500/20">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
+            <div class="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-[120rem] w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-700/50 animate-modal-scale">
+                <!-- Header with Gradient -->
+                <div class="relative overflow-hidden">
+                    <!-- Gradient Background -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 dark:from-violet-500/5 dark:via-purple-500/5 dark:to-fuchsia-500/5"></div>
+                    
+                    <div class="relative flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl blur opacity-40"></div>
+                                <div class="relative p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 dark:from-violet-400 dark:via-purple-400 dark:to-fuchsia-400" data-translate="customizationModal.title">
+                                    Customizations
+                                </h2>
+                                <p class="text-gray-600 dark:text-gray-400 text-sm mt-0.5" data-translate="customizationModal.subtitle">Customize the application's text and settings</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-500 dark:text-white" data-translate="customizationModal.title">
-                                Customizations
-                            </h2>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm mt-0.5" data-translate="customizationModal.subtitle">Customize the application's text and settings</p>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="resetCustomForm" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                <span data-translate="customizationModal.resetButton">Reset</span>
+                            </button>
+                            <button type="submit" form="customizationForm" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-lg shadow-purple-500/30">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span data-translate="customizationModal.saveButton">Save</span>
+                            </button>
+                            <button id="closeCustomModal" class="group p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <svg class="w-6 h-6 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" id="resetCustomForm" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                            </svg>
-                            <span data-translate="customizationModal.resetButton">Reset</span>
-                        </button>
-                        <button type="submit" form="customizationForm" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                            </svg>
-                            <span data-translate="customizationModal.saveButton">Save</span>
-                        </button>
-                        <button id="closeCustomModal" class="p-2 text-gray-400 hover:text-gray-500 focus:outline-none">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
                     </div>
                 </div>
 
@@ -1273,6 +1344,107 @@
                             </div>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Images Modal -->
+    <div id="myImagesModal" class="fixed inset-0 z-[2100] hidden">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-[120rem] w-full max-h-[90vh] overflow-hidden border border-gray-200/50 dark:border-slate-700/50 animate-modal-scale">
+                <!-- Header with Gradient -->
+                <div class="relative overflow-hidden">
+                    <!-- Gradient Background -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-500/5 dark:via-purple-500/5 dark:to-pink-500/5"></div>
+                    
+                    <div class="relative flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl blur opacity-40"></div>
+                                <div class="relative p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm3 10l2.5-3 1.5 2 2-3L17 16H7z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400" data-translate="myImages.title">My Images</h2>
+                                <p class="text-gray-600 dark:text-gray-400 text-sm mt-0.5" data-translate="myImages.subtitle">Manage your own generations and reference images</p>
+                            </div>
+                        </div>
+                        <button id="closeMyImagesModal" class="group p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <svg class="w-6 h-6 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Content with improved scrollbar -->
+                <div class="p-6 overflow-y-auto max-h-[calc(90vh-100px)] space-y-8 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                    <!-- Generations Section -->
+                    <section class="space-y-4">
+                        <!-- Section Header -->
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="h-8 w-1 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full"></div>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-translate="myImages.generations.title">My Generations</h3>
+                        </div>
+                        
+                        <!-- Controls Bar -->
+                        <div class="flex flex-wrap items-center justify-between gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-slate-800/50 dark:to-slate-800/30 rounded-xl border border-gray-200/50 dark:border-slate-700/50">
+                            <label class="inline-flex items-center gap-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 select-none cursor-pointer group">
+                                <input id="myGenSelectAll" type="checkbox" class="w-4 h-4 text-indigo-600 border-gray-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-all cursor-pointer">
+                                <span class="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" data-translate="myImages.actions.selectAll">Select All</span>
+                            </label>
+                            <div class="flex flex-wrap gap-2">
+                                <button id="myGenDelete" class="px-4 py-2 text-sm font-medium rounded-xl bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2" data-translate="myImages.actions.deleteSelected">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    Delete Selected
+                                </button>
+                                <button id="myGenPrivate" class="px-4 py-2 text-sm font-medium rounded-xl bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2" data-translate="myImages.actions.setPrivate">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    Set Private
+                                </button>
+                                <button id="myGenPublic" class="px-4 py-2 text-sm font-medium rounded-xl bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2" data-translate="myImages.actions.setPublic">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Set Public
+                                </button>
+                                <button id="myGenZip" class="px-4 py-2 text-sm font-medium rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2" data-translate="myImages.actions.downloadZip">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    Download ZIP
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- List Container -->
+                        <div id="myGenerationsList" class="divide-y divide-gray-200/50 dark:divide-slate-700/50 rounded-2xl border border-gray-200/50 dark:border-slate-700/50 overflow-hidden bg-white dark:bg-slate-800/50 shadow-sm">
+                            <!-- Rows inserted by JS -->
+                        </div>
+                    </section>
+
+                    <!-- Reference Images Section -->
+                    <section class="space-y-4">
+                        <!-- Section Header -->
+                        <div class="flex items-center gap-3">
+                            <div class="h-8 w-1 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></div>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-translate="myImages.refs.title">My Reference Images</h3>
+                        </div>
+                        
+                        <!-- Grid Container -->
+                        <div id="myRefsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                            <!-- Thumbs inserted by JS -->
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>

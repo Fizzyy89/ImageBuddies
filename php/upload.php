@@ -149,31 +149,63 @@ if (!empty($batchId) && $imageNumber === 1 && isset($data['refImages']) && is_ar
     }
 }
 
-// Erkenne tatsächliches Seitenverhältnis und mappe auf bekannte Werte
+// Erkenne tatsächliches Seitenverhältnis und mappe auf bekannte Ratio-Strings
 $imgSize = @getimagesize($fullImagePath);
-$aspect_class = $size; // Fallback: gewählte/übergebene Größe
-if ($imgSize && isset($imgSize[0], $imgSize[1]) && $imgSize[0] > 0 && $imgSize[1] > 0) {
-    $w = (float)$imgSize[0];
-    $h = (float)$imgSize[1];
-    $r = $w / $h;
-    $targets = [
-        '1024x1024' => 1.0,          // 1:1
-        '1024x1536' => (2/3),        // 2:3 (Hochformat)
-        '1536x1024' => (3/2)         // 3:2 (Querformat)
-    ];
-    $bestKey = $aspect_class;
+$aspect_class = $size; // Fallback: übergebener Wert (kann Dimension oder Ratio sein)
+
+// Erlaubte Ratio-Zielwerte (als numerische Verhältnisse)
+$allowedRatios = [
+    '1:1'   => 1.0,
+    '2:3'   => 2/3,
+    '3:2'   => 3/2,
+    '3:4'   => 3/4,
+    '4:3'   => 4/3,
+    '4:5'   => 4/5,
+    '5:4'   => 5/4,
+    '9:16'  => 9/16,
+    '16:9'  => 16/9,
+    '21:9'  => 21/9
+];
+
+$pickNearestRatio = function(float $ratio) use ($allowedRatios) {
+    $bestKey = '1:1';
     $bestDiff = PHP_FLOAT_MAX;
-    foreach ($targets as $key => $val) {
-        $diff = abs($r - $val);
+    foreach ($allowedRatios as $key => $val) {
+        $diff = abs($ratio - $val);
         if ($diff < $bestDiff) {
             $bestDiff = $diff;
             $bestKey = $key;
         }
     }
-    $aspect_class = $bestKey;
+    return $bestKey;
+};
+
+if ($imgSize && isset($imgSize[0], $imgSize[1]) && $imgSize[0] > 0 && $imgSize[1] > 0) {
+    $w = (float)$imgSize[0];
+    $h = (float)$imgSize[1];
+    $r = $w / $h;
+    $aspect_class = $pickNearestRatio($r);
+} else {
+    // Fallback: versuche aus $size zu lesen
+    if (is_string($size) && strpos($size, 'x') !== false) {
+        // Format WxH
+        $parts = explode('x', strtolower($size));
+        $w = floatval($parts[0]);
+        $h = floatval($parts[1] ?? 0);
+        if ($w > 0 && $h > 0) {
+            $aspect_class = $pickNearestRatio($w / $h);
+        } else {
+            $aspect_class = '1:1';
+        }
+    } elseif (is_string($size) && strpos($size, ':') !== false) {
+        // Bereits Ratio a:b
+        $aspect_class = $size;
+    } else {
+        $aspect_class = '1:1';
+    }
 }
 
-// (CSV-Logging entfernt – Speicherung erfolgt nur noch in SQLite)
+
 
 // Persistiere in SQLite
 require_once __DIR__ . '/db.php';

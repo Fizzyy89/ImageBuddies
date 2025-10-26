@@ -194,7 +194,18 @@ function updateAspectRatioChart(data) {
     const ctx = document.getElementById('aspectRatioChart');
     if (charts.aspectRatio) charts.aspectRatio.destroy();
     
+    // Unterstütze Ratio-Strings direkt (z. B. '1:1', '16:9') und alte Dimensionen
     const labels = {
+        '1:1': translate('statistics.aspectRatio.squareLabel'),
+        '2:3': translate('statistics.aspectRatio.portraitLabel'),
+        '3:2': translate('statistics.aspectRatio.landscapeLabel'),
+        '3:4': translate('statistics.aspectRatio.3_4') || '3:4',
+        '4:3': translate('statistics.aspectRatio.4_3') || '4:3',
+        '4:5': translate('statistics.aspectRatio.4_5') || '4:5',
+        '5:4': translate('statistics.aspectRatio.5_4') || '5:4',
+        '9:16': translate('statistics.aspectRatio.9_16') || '9:16',
+        '16:9': translate('statistics.aspectRatio.16_9') || '16:9',
+        '21:9': translate('statistics.aspectRatio.21_9') || '21:9',
         '1024x1024': translate('statistics.aspectRatio.squareLabel'),
         '1024x1536': translate('statistics.aspectRatio.portraitLabel'),
         '1536x1024': translate('statistics.aspectRatio.landscapeLabel')

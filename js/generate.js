@@ -68,6 +68,11 @@ export async function generateImage({
             formData.append('image[]', file);
         });
         formData.append('prompt', prompt);
+        const geminiAspectSelect = document.getElementById('geminiAspectRatio');
+        const selectedAspect = geminiAspectSelect ? geminiAspectSelect.value : '';
+        if (selectedAspect) {
+            formData.append('aspect_ratio', selectedAspect);
+        }
         requestBody = formData;
     }
     // OpenAI Mode with reference images
@@ -625,7 +630,7 @@ export function downloadImage(imageUrl, prompt) {
 }
 
 export function downloadBatch(batchId, prompt) {
-    const downloadUrl = `php/download_batch.php?batchId=${batchId}`;
+    const downloadUrl = `php/zip_download.php?batchId=${batchId}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.click();

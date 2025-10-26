@@ -350,6 +350,10 @@ export function initCustomization() {
                     updatePageContent(data);
                     customModal.classList.add('hidden');
                     showNotification('notification.changesSavedSuccess', 'success');
+                    // Seite neu laden, damit alle Änderungen (inkl. Keys/Flags) global greifen
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 300);
                 } else {
                     showNotification(result.error || 'notification.saveFailed', 'error');
                 }

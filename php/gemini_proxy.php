@@ -116,9 +116,17 @@ if ($endpoint === 'edit') {
             ]
         ],
         'generationConfig' => [
-            'responseModalities' => ['TEXT', 'IMAGE']
+            'responseModalities' => ['IMAGE']
         ]
     ];
+
+    // Optional: Seitenverhältnis übergeben
+    $aspectRatio = $_POST['aspect_ratio'] ?? '';
+    if ($aspectRatio) {
+        $requestPayload['generationConfig']['imageConfig'] = [
+            'aspectRatio' => $aspectRatio
+        ];
+    }
     
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");

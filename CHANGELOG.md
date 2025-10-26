@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-10-
+
+### Added
+ - **My Images (Profile Modal)**
+   - New profile modal with two sections: "My Generations" (multi-select, delete, set private/public, ZIP download) and "My Reference Images" (grid gallery)
+   - Row click toggles selection (checkbox); thumbnail click opens the lightbox in the foreground; reference image click opens a new tab
+   - Detailed info per generation: prompt excerpt, privacy, batch size, quality, aspect ratio, timestamp (localized)
+   - Unified i18n, quality badge color logic aligned with the Lightbox, consistent timestamp format
+   - "Select All" master checkbox with indeterminate state
+
+- **Gemini Aspect Ratio Selection**
+  - Added comprehensive aspect ratio dropdown in Gemini (Nano Banana) mode
+  - Support for 10 different aspect ratios: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9
+  - Aspect ratios organized in groups: Square, Portrait, and Landscape
+  - Each option shows ratio, description, and pixel dimensions
+  - "Automatic" option uses input image's aspect ratio
+  - Aspect ratios are correctly stored in database and displayed in lightbox
+  - Statistics properly track all aspect ratio variants
+
+- **Unified Aspect Ratio Storage System**
+  - Standardized aspect ratio storage format across OpenAI and Gemini modes
+  - Database now stores ratios as standardized strings (e.g., "1:1", "16:9")
+  - Automatic conversion of legacy dimension formats (e.g., "1024x1024" → "1:1")
+  - Intelligent aspect ratio detection from actual image dimensions
+  - Backward compatibility with existing database entries
+  - Consistent display in lightbox and statistics regardless of source mode
+
+- **Smart Batch Download Feature**
+  - Download button in lightbox now intelligently detects single images vs. batches
+  - Single images: Direct download with one click
+  - Batch images: Shows elegant dropdown menu with two options:
+    - "This Image" - Downloads only the current image
+    - "All Variations" - Downloads entire batch as ZIP file
+  - Dropdown closes automatically when clicking outside
+
+- **Lightbox "Edit with Gemini" Button**
+  - New "Edit Image" button appears in lightbox when Gemini is available
+  - Always switches to OpenAI mode when using "New Generation" button
+  - "Edit with Gemini" button:
+    - Switches to Gemini mode
+    - Loads current image as input
+    - Clears prompt field for fresh editing instructions
+    - Closes lightbox and scrolls to top
+  - Robust availability detection via database flag check
+  - Button dynamically appears/disappears based on Gemini API key configuration
+
+### Changed
+- Customization modal now automatically reloads the page after saving changes
+  - Ensures all changes (API keys, flags, texts) take effect immediately
+  - Shows success notification before reload
+  - 300ms delay for smooth transition
+
 ## [0.5.0] - 2025-10-24
 
 ### Added

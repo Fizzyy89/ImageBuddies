@@ -21,7 +21,7 @@ if (!$data) {
 
 // Validate language if it's being updated
 if (isset($data['language'])) {
-    $supportedLanguages = ['en', 'de'];
+    $supportedLanguages = ['en', 'de', 'es', 'pl', 'fr'];
     if (!in_array($data['language'], $supportedLanguages)) {
         http_response_code(400);
         echo json_encode(['error_key' => 'error.customization.unsupportedLanguage']);

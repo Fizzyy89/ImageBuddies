@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Robust availability detection via database flag check
   - Button dynamically appears/disappears based on Gemini API key configuration
 
+### Internationalization
+- Added three new languages — Spanish (es), Polish (pl), and French (fr). While english and german where manually created, these additional translations were generated automatically by AI. Please report potential errors. 
+
 ### Changed
 - Customization modal now automatically reloads the page after saving changes
   - Ensures all changes (API keys, flags, texts) take effect immediately

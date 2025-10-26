@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Validate language is supported
-    $supportedLanguages = ['en', 'de'];
+    $supportedLanguages = ['en', 'de', 'es', 'pl', 'fr'];
     $setupLanguage = $data['language'];
     if (!in_array($setupLanguage, $supportedLanguages)) {
         http_response_code(400);

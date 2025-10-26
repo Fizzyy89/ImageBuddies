@@ -2,8 +2,8 @@ import { translate } from './i18n.js';
 import { galleryImages, allImages } from './gallery.js';
 import { refreshUserStats } from './userInfo.js';
 import { currentMode } from './prompt.js';
-// Bildgenerierungs- und Vorschau-Modul
-// Verantwortlich für das Generieren, Anzeigen und Herunterladen von Bildern
+// Image generation and preview module
+// Responsible for generating, displaying, and downloading images
 
 export async function generateImage({
     prompt,
@@ -33,7 +33,7 @@ export async function generateImage({
         return;
     }
     
-    // Für Gemini: Mindestens 1 Bild erforderlich
+    // Gemini requires at least one input image
     if (currentMode === 'gemini' && uploadedFiles.length === 0) {
         alert(translate('gemini.imageRequired'));
         return;
@@ -52,7 +52,7 @@ export async function generateImage({
     if (previewPulse) previewPulse.classList.remove('hidden');
     if (placeholderText) placeholderText.classList.add('hidden');
 
-    // Get selected image count (nur für OpenAI relevant)
+    // Get selected image count (OpenAI only)
     const selectedCount = currentMode === 'gemini' ? 1 : (parseInt(document.querySelector('.image-count-btn.selected')?.dataset.value) || 1);
     const batchId = new Date().getTime().toString(); 
 
@@ -104,7 +104,7 @@ export async function generateImage({
     }
 
     try {
-        // Base64-Referenzbilder für serverseitige Speicherung vorbereiten (werden nur beim Speichern des ersten Bildes gesendet)
+        // Prepare base64 reference images for server-side persistence (only sent with the first image)
         let refImagesBase64 = [];
         if (uploadedFiles.length > 0) {
             const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -119,7 +119,7 @@ export async function generateImage({
                 refImagesBase64 = [];
             }
         }
-        // Streaming nur für OpenAI Generations ohne Referenzbilder
+        // Streaming for OpenAI generations without reference images only
         const canStream = currentMode === 'openai' && uploadedFiles.length === 0 && selectedCount === 1;
         if (canStream) {
             const streamUrl = 'php/openai_proxy.php?endpoint=generations_stream';
@@ -148,7 +148,7 @@ export async function generateImage({
             let buffer = '';
             let lastImageBase64 = null;
 
-            // Helfer: wendet ein Base64-Bild in der Vorschau an
+            // Helper: apply a base64 image to the preview
             const showPreview = (b64) => {
                 if (!b64) return;
                 lastImageBase64 = b64;
@@ -162,7 +162,7 @@ export async function generateImage({
                 if (placeholderText) placeholderText.classList.add('hidden');
             };
 
-            // SSE Parser: verarbeitet vollständige Events aus dem Puffer
+            // SSE parser: process complete events from buffer
             const processBuffer = () => {
                 const events = buffer.split('\n\n');
                 // Letztes Fragment aufheben, falls unvollständig
@@ -182,22 +182,22 @@ export async function generateImage({
                     let json;
                     try { json = JSON.parse(dataPayload); } catch { continue; }
 
-                    // Versuche mögliche Felder für Teil-/Finalbilder
-                    // Images API: b64_json bei partial/final
-                    // Responses API (falls später verwendet): partial_image_b64
+                    // Try potential fields for partial/final images
+                    // Images API: b64_json for partial/final
+                    // Responses API (future): partial_image_b64
                     const possibleBase64 = json.b64_json || json.partial_image_b64 || json.image_b64;
                     if (type.includes('partial') || type.includes('image_generation') || possibleBase64) {
                         showPreview(possibleBase64);
                     }
 
-                    // Fehlerereignis
+                    // Error event
                     if (type.includes('error') || json.error) {
                         throw new Error(json.error?.message || 'Streaming error');
                     }
                 }
             };
 
-            // Stream lesen
+            // Read stream
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
@@ -205,7 +205,7 @@ export async function generateImage({
                 processBuffer();
             }
 
-            // Nach Stream-Ende: letztes Bild als final behandeln und speichern
+            // After stream end: treat last image as final and save
             // Reset button state
             if (generateIcon) generateIcon.classList.remove('hidden');
             if (generateSpinner) generateSpinner.classList.add('hidden');
@@ -246,7 +246,7 @@ export async function generateImage({
                 if (errorContainer) errorContainer.classList.remove('hidden');
             }
 
-            // Galerie aktualisieren + Download-Button aktivieren
+            // Refresh gallery + enable download button
             await loadImageGrid();
             const latestGalleryImages = [...galleryImages];
             if (latestGalleryImages.length > 0) {
@@ -259,7 +259,7 @@ export async function generateImage({
             return;
         }
 
-        // Multi-Stream: mehrere Einzel-Streams parallel für N>1 (ohne Referenzbilder)
+        // Multi-stream: multiple single streams in parallel for N>1 (no reference images)
         const canMultiStream = uploadedFiles.length === 0 && selectedCount > 1;
         if (canMultiStream) {
             const streamUrl = 'php/openai_proxy.php?endpoint=generations_stream';
@@ -275,7 +275,7 @@ export async function generateImage({
             const generatedImageEl = document.getElementById('generatedImage');
             generatedImageEl.classList.add('hidden');
 
-            // Grid vorbereiten (nutzt verfügbaren Platz optimal, ohne Container zu vergrößern)
+            // Prepare preview grid (use available space without enlarging container)
             let gridClass;
             if (selectedCount === 2) {
                 gridClass = 'grid-cols-2';
@@ -409,7 +409,7 @@ export async function generateImage({
                 return;
             }
 
-            // Galerie aktualisieren und Klickhandler setzen
+            // Refresh gallery and set click handlers
             await loadImageGrid();
             const latestGalleryImages = [...galleryImages];
             const latestAllImages = [...allImages];
@@ -437,7 +437,7 @@ export async function generateImage({
             return;
         }
 
-        // Fallback: bisheriges, nicht-streaming Verhalten
+        // Fallback: non-streaming behavior
         const response = await fetch(requestUrl, {
             method: 'POST',
             headers: requestHeaders,
@@ -507,7 +507,7 @@ export async function generateImage({
                     }
                 }
             } else {
-                // Create a grid for multiple images (nutzt verfügbaren Platz optimal)
+                // Create a grid for multiple images (use available space)
                 let gridClass;
                 if (selectedCount === 2) {
                     gridClass = 'grid-cols-2';

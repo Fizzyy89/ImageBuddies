@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/password_validation.php';
 require_once __DIR__ . '/db.php';
 
-// Prüfe ob User eingeloggt ist
+// Check if user is logged in
 if (!isset($_SESSION['user'])) {
     http_response_code(403);
     echo json_encode(['error_key' => 'error.notLoggedIn']);
@@ -22,7 +22,7 @@ if (empty($currentPassword) || empty($newPassword)) {
     exit;
 }
 
-// Validiere das neue Passwort
+// Validate new password
 $validation = validatePassword($newPassword);
 if (!$validation['valid']) {
     http_response_code(400);
@@ -30,7 +30,7 @@ if (!$validation['valid']) {
     exit;
 }
 
-// Lade Benutzerdaten aus DB
+// Load user data from DB
 $username = $_SESSION['user'];
 $row = db_row('SELECT password_hash FROM users WHERE username = ?', [$username]);
 if ($row === null) {
@@ -39,14 +39,14 @@ if ($row === null) {
     exit;
 }
 
-// Prüfe ob aktuelles Passwort korrekt ist
+// Verify current password
 if (!password_verify($currentPassword, $row['password_hash'])) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.currentPasswordIncorrect']);
     exit;
 }
 
-// Setze neues Passwort
+// Set new password
 db_exec('UPDATE users SET password_hash = ? WHERE username = ?', [
     password_hash($newPassword, PASSWORD_DEFAULT),
     $username

@@ -9,7 +9,7 @@ if (!isset($_SESSION['user'])) {
 
 header('Content-Type: application/json');
 
-// Nur POST zulassen
+// Allow POST only
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error_key' => 'error.proxy.postOnly']);
@@ -30,7 +30,7 @@ if (!$OPENAI_KEY) {
 }
 
 $endpoint = $_GET['endpoint'] ?? '';
-// Flag für Streaming-Endpunkte
+// Flag for streaming endpoints
 $isStream = ($endpoint === 'generations_stream');
 
 if ($endpoint === 'generations') {
@@ -48,8 +48,8 @@ if ($endpoint === 'generations') {
         $body = json_encode($data);
     }
 } elseif ($endpoint === 'generations_stream') {
-    // Streaming (SSE) für Image Generations
-    // Hinweis: Wir begrenzen Streaming aktuell auf n=1
+    // Streaming (SSE) for image generations
+    // Note: streaming is currently limited to n=1
     $url = 'https://api.openai.com/v1/images/generations';
     $headers = [
         'Authorization: Bearer ' . $OPENAI_KEY,
@@ -58,13 +58,12 @@ if ($endpoint === 'generations') {
     ];
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true) ?: [];
-    // Erzwinge Streaming-Parameter
+    // Force streaming parameters
     $data['stream'] = true;
     $data['n'] = 1; // Streaming zunächst nur für ein Bild
     $partialImages = isset($data['partial_images']) ? intval($data['partial_images']) : 3;
     $data['partial_images'] = min(max($partialImages, 0), 3);
-    // Sicherheitshalber einige erwartete Felder bestehen lassen
-    // (model, prompt, size, quality, moderation)
+    // Ensure expected fields remain (model, prompt, size, quality, moderation)
     $body = json_encode($data);
 } elseif ($endpoint === 'edits') {
     $url = 'https://api.openai.com/v1/images/edits';
@@ -128,23 +127,23 @@ $ch = curl_init($url);
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
 if ($isStream) {
-    // Server-Sent Events Header für Client setzen
+    // Set Server-Sent Events headers for client
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
     header('Connection: keep-alive');
-    // Proxy-/Server-Buffering nach Möglichkeit deaktivieren
+    // Disable proxy/server buffering where possible
     header('X-Accel-Buffering: no');
-    // Session freigeben, um Blockaden zu vermeiden
+    // Release session to avoid blocking
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();
     }
-    // Output Buffer leeren
+    // Clear output buffers
     while (ob_get_level() > 0) {
         @ob_end_flush();
     }
     @ob_implicit_flush(true);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
-    // Stream-Forwarding: eingehende SSE-Daten direkt an Client weiterreichen
+    // Stream forwarding: pass incoming SSE data directly to client
     curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $chunk) {
         echo $chunk;
         @flush();
@@ -156,7 +155,7 @@ if ($isStream) {
 }
 
 if ($endpoint === 'edits') {
-    // multipart/form-data weiterleiten
+    // Forward multipart/form-data
     $formData = [];
     foreach ($_FILES as $key => $fileArr) {
         if (is_array($fileArr['tmp_name'])) {
@@ -176,10 +175,10 @@ if ($endpoint === 'edits') {
 }
 
 if ($isStream) {
-    // Streaming-Exec: Ausgabe wurde bereits gestreamt
+    // Streaming exec: output has already been streamed
     $ok = curl_exec($ch);
     if ($ok === false) {
-        // Fehler als SSE-Event senden
+        // Send error as SSE event
         $err = curl_error($ch);
         echo "event: error\n";
         echo 'data: ' . json_encode(['message' => 'stream_failed', 'detail' => $err]) . "\n\n";

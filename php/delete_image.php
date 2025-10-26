@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Prüfe ob User eingeloggt ist
+// Check if user is logged in
 if (!isset($_SESSION['user'])) {
     http_response_code(401);
     echo json_encode(['error_key' => 'error.notLoggedIn']);
@@ -14,9 +14,9 @@ $currentUser = $_SESSION['user'];
 $data = json_decode(file_get_contents('php://input'), true);
 require_once __DIR__ . '/db.php';
 if (isset($data['batchId'])) {
-    // Lösche gesamte Batch
+    // Delete entire batch
     $batchId = $data['batchId'];
-    // Besitz prüfen
+    // Ownership check
     if (!$isAdmin) {
         $rows = db_rows('SELECT g.id, g.filename, u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.batch_id = ?', [$batchId]);
         if (empty($rows)) {
@@ -44,7 +44,7 @@ if (isset($data['batchId'])) {
         $deletedFiles[] = $basename;
     }
     db_exec('UPDATE generations SET deleted = 1 WHERE batch_id = ?', [$batchId]);
-    // Referenz-Ordner der Batch löschen
+    // Delete batch reference folder
     $safeBatch = preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
     $refsDir = dirname(__DIR__) . '/images/refs/' . $safeBatch;
     if (is_dir($refsDir)) {
@@ -69,14 +69,14 @@ if (!isset($data['filename'])) {
 $filename = $data['filename'];
 $basename = basename($filename);
 
-// Sicherheitscheck: Stelle sicher, dass nur Bilder gelöscht werden können
+// Security check: ensure only image files can be deleted
 if (!preg_match('/^image_[0-9T\-]+\.png$/', $basename)) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.deleteImage.invalidFilename']);
     exit;
 }
 
-// Prüfe Berechtigung: User darf nur eigene Bilder löschen, Admin darf alle löschen
+// Permission check: users may delete own images; admins may delete all
 if (!$isAdmin) {
     $row = db_row('SELECT u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.filename = ?', [$basename]);
     if ($row === null || $row['owner'] !== $currentUser) {
@@ -86,7 +86,7 @@ if (!$isAdmin) {
     }
 }
 
-// Lösche die Bilddatei
+// Delete image files
 $imagePath = dirname(__DIR__) . '/images/' . $basename;
 $thumbPath = dirname(__DIR__) . '/images/thumbs/' . $basename;
 
@@ -106,10 +106,10 @@ if (!$imgOk) {
     exit;
 }
 if (!$thumbOk) {
-    // Kein harter Fehler, aber ggf. Hinweis
+    // Not a hard error, but keep note
 }
 
-// Markiere als gelöscht in DB
+// Mark as deleted in DB
 db_exec('UPDATE generations SET deleted = 1 WHERE filename = ?', [$basename]);
 
 echo json_encode(['success' => true]);

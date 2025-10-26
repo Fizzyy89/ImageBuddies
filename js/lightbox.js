@@ -1,7 +1,7 @@
 import { translate, currentLanguage } from './i18n.js';
 import { uploadedFiles, updateImagePreviews, updateGeminiUploadGrid, updateTotalCost } from './prompt.js';
-// Lightbox-Modul
-// Verantwortlich für Lightbox, Bildanzeige, Navigation, Metadaten, Privat-Status, Löschen, Download, URL-Kopieren und Prompt-Kopieren
+// Lightbox module
+// Responsible for image display, navigation, metadata, private status, deletion, download, URL copy, and prompt copy
 
 export function initLightbox({
     lightbox,
@@ -29,9 +29,9 @@ export function initLightbox({
     isAdmin
 }) {
     let currentGalleryIndex = -1;
-    let tempDirectImage = null; // Merkt sich, ob ein Bild direkt angezeigt wird
+    let tempDirectImage = null; // Tracks if an image is shown directly
 
-    // Hilfsfunktion: Referenzbilder-Label mit Toggle-Funktionalität
+    // Helper: reference images label with toggle functionality
     function setupRefLabel(imgObj) {
         const refCount = parseInt(imgObj.ref_image_count) || 0;
         const refLabel = document.getElementById('lightboxRefCount');
@@ -62,20 +62,20 @@ export function initLightbox({
     }
 
     function renderBatchThumbnails(imgObj) {
-        // Entferne alte Thumbnail-Zeilen
+        // Remove old thumbnail rows
         if (lightboxPrompt && lightboxPrompt.parentNode) {
             lightboxPrompt.parentNode.querySelectorAll('.lightbox-batch-row').forEach(el => el.remove());
             lightboxPrompt.parentNode.querySelectorAll('.lightbox-batch-separator').forEach(el => el.remove());
         }
         if (!imgObj.batchId) return;
         const batchImages = allImages.filter(img => img.batchId === imgObj.batchId);
-        // Einfügen nach dem Label-Container (Qualität/Seitenverhältnis/Referenzbilder)
+        // Insert after the label container (quality/aspect ratio/reference images)
         let labelContainer = null;
         if (lightboxPrompt && lightboxPrompt.parentNode) {
-            // Suche den Label-Container (enthält id="lightboxAspectRatio")
+            // Find the label container (contains id="lightboxAspectRatio")
             labelContainer = Array.from(lightboxPrompt.parentNode.querySelectorAll('div')).find(div => div.querySelector && div.querySelector('#lightboxAspectRatio'));
         }
-        // --- Thumbnail-Zeile (nur wenn Batch > 1 Bild) ---
+        // --- Thumbnail row (only if batch has more than 1 image) ---
         let thumbBarRow = null;
         if (batchImages.length > 1) {
             thumbBarRow = document.createElement('div');
@@ -123,7 +123,7 @@ export function initLightbox({
             }
         }
 
-        // --- Referenzbilder-Leiste (falls vorhanden, standardmäßig versteckt) ---
+        // --- Reference images row (if present, hidden by default) ---
         const owner = imgObj.user || '';
         const currentGalleryMain = galleryImages.find(g => g.batchId === imgObj.batchId && String(g.imageNumber) === '1');
         const refImages = currentGalleryMain && currentGalleryMain.refImages ? currentGalleryMain.refImages : (imgObj.refImages || []);
@@ -160,8 +160,7 @@ export function initLightbox({
                 lightboxPrompt.parentNode.insertBefore(refsRow, lightboxPrompt.nextSibling);
             }
         }
-        // --- Neuer Hauptbild-Button UNTER der Thumbnail-Zeile ---
-        // Vorherige Instanzen entfernen, um Duplikate zu verhindern
+        // --- "Make main image" button below the thumbnail row ---
         if (lightboxPrompt && lightboxPrompt.parentNode) {
             lightboxPrompt.parentNode.querySelectorAll('.lightbox-make-main-btn').forEach(el => el.remove());
         }
@@ -217,12 +216,12 @@ export function initLightbox({
         lightboxImage.src = imgObj.file;
         lightboxImage.style.cssText = 'image-rendering: auto;';
 
-        // --- Alle potenziell von renderBatchThumbnails hinzugefügten Elemente entfernen ---
+        // --- Remove any elements potentially added by renderBatchThumbnails ---
         if (lightboxPrompt && lightboxPrompt.parentNode) {
             lightboxPrompt.parentNode.querySelectorAll('.lightbox-batch-row, .lightbox-batch-separator, .lightbox-make-main-btn').forEach(el => el.remove());
         }
 
-        // --- Metadaten, Prompt, User, Datum, Qualität, Seitenverhältnis ---
+        // --- Metadata, prompt, user, date, quality, aspect ratio ---
         if (imgObj.prompt) {
             lightboxPrompt.textContent = imgObj.prompt;
             lightboxPrompt.parentElement.classList.remove('hidden');
@@ -233,9 +232,9 @@ export function initLightbox({
             copyPromptBtn.classList.add('hidden');
             reusePromptBtn.classList.add('hidden');
         }
-        // Sicherstellen, dass der Gemini-Button korrekt angezeigt wird
+        // Ensure the Gemini button is displayed correctly
         ensureGeminiEditButton(imgObj);
-        // Benutzer und Datum
+        // User and date
         if (imgObj.user) {
             let dateStr = '';
             if (imgObj.timestamp) {
@@ -275,11 +274,11 @@ export function initLightbox({
                 ` : ''}`;
             lightboxMeta.innerHTML = metaHeader;
             lightboxMeta.classList.remove('hidden');
-            // Qualität und Seitenverhältnis
+            // Quality and aspect ratio
             const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high', 'gemini': 'settings.quality.gemini' };
             const quality = translate(qualityKeyMap[imgObj.quality] || imgObj.quality);
-            // imgObj.size kann Ratio ("16:9") oder Dimension ("1024x1536") sein
-            let aspectRatio = imgObj.size;
+            // Rein auf aspect_class umstellen
+            let aspectRatio = imgObj.aspect_class;
             if (typeof aspectRatio === 'string' && aspectRatio.includes('x')) {
                 const [w, h] = aspectRatio.toLowerCase().split('x');
                 const wf = parseFloat(w), hf = parseFloat(h);
@@ -308,12 +307,12 @@ export function initLightbox({
             qualityText.textContent = quality;
             qualityLabel.querySelector('svg').setAttribute('class', `w-4 h-4 ${qualityColor.includes('yellow') ? 'text-yellow-500' : qualityColor.includes('blue') ? 'text-blue-500' : qualityColor.includes('green') ? 'text-green-500' : qualityColor.includes('purple') ? 'text-purple-500' : 'text-gray-500'}`);
 
-            // Referenzbilder Label hinzufügen (mit Toggle-Funktionalität)
+            // Add reference images label (with toggle functionality)
             setupRefLabel(imgObj);
         } else {
             lightboxMeta.classList.add('hidden');
         }
-        // Privat-Checkbox
+        // Private toggle
         if (imgObj.user && userName.textContent && imgObj.user === userName.textContent.trim()) {
             privateCheckboxContainer.classList.remove('hidden');
             const isPrivate = imgObj.private === '1';
@@ -337,7 +336,7 @@ export function initLightbox({
         lightbox.classList.remove('hidden');
         lightbox.classList.add('active');
         updateLightboxNav();
-        // Delete-Button für Admins und Eigentümer anzeigen
+        // Show delete button for admins and owners
         if (deleteImageBtn) {
             const isOwner = imgObj.user && userName.textContent && imgObj.user === userName.textContent.trim();
             if (isAdmin || isOwner) {
@@ -346,13 +345,13 @@ export function initLightbox({
                 deleteImageBtn.classList.add('hidden');
             }
         }
-        // Batch-Thumbnails anzeigen (wenn Batch)
+        // Show batch thumbnails (if batch)
         renderBatchThumbnails(imgObj);
-        // Navigation (Prev/Next) immer anzeigen
+        // Always show navigation (prev/next)
         updateLightboxNav();
     }
     function updateLightboxNav() {
-        // Wenn ein direktes Bild angezeigt wird, Navigation auf Basis galleryImages
+        // If a direct image is shown, navigation is based on galleryImages
         if (galleryImages.length > 1) {
             lightboxPrev.classList.remove('hidden');
             lightboxNext.classList.remove('hidden');
@@ -362,7 +361,7 @@ export function initLightbox({
         }
         let idx = currentGalleryIndex;
         if (tempDirectImage) {
-            // Wenn das Bild nicht in der Galerie ist, suche das Batch-Hauptbild (imageNumber === '1') in galleryImages
+            // If the image is not in the gallery, find the batch main image (imageNumber === '1') in galleryImages
             const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && String(g.imageNumber) === '1');
             idx = batchMain ? galleryImages.findIndex(g => g.file === batchMain.file) : -1;
         }
@@ -376,7 +375,7 @@ export function initLightbox({
             e.stopPropagation();
             let idx = currentGalleryIndex;
             if (tempDirectImage) {
-                // Wenn das Bild nicht in der Galerie ist, suche das Batch-Hauptbild (imageNumber === '1') in galleryImages
+                // If the image is not in the gallery, find the batch main image (imageNumber === '1') in galleryImages
                 const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && String(g.imageNumber) === '1');
                 idx = batchMain ? galleryImages.findIndex(g => g.file === batchMain.file) : -1;
             }
@@ -388,7 +387,7 @@ export function initLightbox({
             e.stopPropagation();
             let idx = currentGalleryIndex;
             if (tempDirectImage) {
-                // Wenn das Bild nicht in der Galerie ist, suche das Batch-Hauptbild (imageNumber === '1') in galleryImages
+                // If the image is not in the gallery, find the batch main image (imageNumber === '1') in galleryImages
                 const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && String(g.imageNumber) === '1');
                 idx = batchMain ? galleryImages.findIndex(g => g.file === batchMain.file) : -1;
             }
@@ -426,19 +425,19 @@ export function initLightbox({
             openGalleryLightbox(currentGalleryIndex + 1);
         }
     });
-    // Öffnen über CustomEvent
+    // Open via CustomEvent
     window.addEventListener('openLightbox', (e) => {
         openGalleryLightbox(e.detail.index);
     });
 
-    // Öffnen eines spezifischen Batch-Bildes
+    // Open a specific batch image
     window.addEventListener('showBatchImage', (e) => {
         showBatchImageDirect(e.detail.image);
         lightbox.classList.remove('hidden');
         lightbox.classList.add('active');
     });
 
-    // Hilfsfunktion: Liefert das aktuell angezeigte Bildobjekt (egal ob Gallery oder direktes Batch-Bild)
+    // Helper: returns the currently shown image object (gallery or direct batch image)
     function getCurrentLightboxImage() {
         if (tempDirectImage) return tempDirectImage;
         if (currentGalleryIndex >= 0 && galleryImages[currentGalleryIndex]) return galleryImages[currentGalleryIndex];
@@ -448,7 +447,7 @@ export function initLightbox({
     if (lightboxDownloadBtn) {
         lightboxDownloadBtn.onclick = null;
         
-        // Erstelle Download-Dropdown-Container (initial versteckt)
+        // Create download dropdown container (initially hidden)
         const downloadDropdown = document.createElement('div');
         downloadDropdown.id = 'downloadDropdown';
         downloadDropdown.className = 'hidden absolute top-full right-0 mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 py-2 z-50 min-w-[180px]';
@@ -474,19 +473,19 @@ export function initLightbox({
             const currentImage = getCurrentLightboxImage();
             if (!currentImage) return;
 
-            // Prüfe ob Batch mit mehreren Bildern
+        // Check if batch has multiple images
             const isBatch = currentImage.batchId && allImages.filter(img => img.batchId === currentImage.batchId).length > 1;
             
             if (isBatch) {
-                // Zeige Dropdown
+                // Show dropdown
                 downloadDropdown.classList.remove('hidden');
             } else {
-                // Direkter Download für Einzelbilder
+                // Direct download for single images
                 downloadSingleImage(currentImage);
             }
         });
 
-        // Event-Handler für Dropdown-Optionen
+        // Handlers for dropdown options
         document.getElementById('downloadSingleBtn').addEventListener('click', (e) => {
             e.stopPropagation();
             downloadDropdown.classList.add('hidden');
@@ -509,12 +508,12 @@ export function initLightbox({
             }
         });
 
-        // Schließe Dropdown bei Klick außerhalb
+        // Close dropdown on outside click
         document.addEventListener('click', () => {
             downloadDropdown.classList.add('hidden');
         });
 
-        // Hilfsfunktion für einzelnen Bild-Download
+        // Helper for a single image download
         function downloadSingleImage(image) {
             const link = document.createElement('a');
             link.href = image.file;
@@ -591,8 +590,9 @@ export function initLightbox({
             if (openaiBtn) openaiBtn.click();
             const promptInput = document.getElementById('prompt');
             promptInput.value = imgObj.prompt;
-            if (imgObj.size) {
-                const aspectBtn = document.querySelector(`.aspect-btn[data-value="${imgObj.size}"]`);
+            if (imgObj.aspect_class) {
+                const val = imgObj.aspect_class;
+                const aspectBtn = document.querySelector(`.aspect-btn[data-value="${val}"]`);
                 if (aspectBtn) {
                     document.querySelectorAll('.aspect-btn').forEach(btn => {
                         btn.classList.remove('selected', 'bg-indigo-50', 'dark:bg-indigo-500/10', 'border-indigo-200', 'dark:border-indigo-500/30', 'text-indigo-700', 'dark:text-indigo-300');
@@ -658,7 +658,7 @@ export function initLightbox({
         });
     }
 
-    // Robuste Prüfung über DB-Flag und dynamisches Einfügen des Gemini-Buttons
+    // Robust check via DB flag and dynamic insertion of the Gemini button
     async function ensureGeminiEditButton(imgObj) {
         try {
             const res = await fetch('php/get_customization.php');
@@ -666,7 +666,7 @@ export function initLightbox({
             const available = !!(cfg && cfg.geminiAvailable === true);
             const actionsContainer = reusePromptBtn ? reusePromptBtn.parentElement : null;
             if (!actionsContainer) return;
-            // Vorhandenen Button entfernen, um Duplikate zu vermeiden
+            // Remove existing button to avoid duplicates
             const existing = actionsContainer.querySelector('#editWithGeminiBtn');
             if (existing) existing.remove();
             if (!available) return;
@@ -683,10 +683,10 @@ export function initLightbox({
             editBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (!imgObj) return;
-                // Wechsel in Gemini-Modus
+                // Switch to Gemini mode
                 const geminiBtn = document.getElementById('modeGemini');
                 if (geminiBtn) geminiBtn.click();
-                // Prompt nicht übernehmen
+                // Do not carry over the prompt
                 const promptInput = document.getElementById('prompt');
                 if (promptInput) promptInput.value = '';
                 // Aktuelles Bild als Eingabebild setzen
@@ -701,7 +701,7 @@ export function initLightbox({
                 } catch (err) {
                     console.error('Failed to prepare image for Gemini:', err);
                 }
-                // Lightbox schließen
+                // Close lightbox
                 lightbox.classList.add('hidden');
                 lightbox.classList.remove('active');
                 lightboxImage.src = '#';
@@ -710,11 +710,11 @@ export function initLightbox({
                 if (promptInput) promptInput.focus();
             });
         } catch (e) {
-            // Ignoriere Fehler still – Button wird dann einfach nicht angezeigt
+            // Silently ignore errors — the button will simply not be shown
         }
     }
 
-    // (Der Gemini-Button wird dynamisch in ensureGeminiEditButton() verwaltet)
+    // (The Gemini button is managed dynamically in ensureGeminiEditButton())
     if (deleteImageBtn) {
         deleteImageBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -723,7 +723,7 @@ export function initLightbox({
             let batchDelete = false;
             let batchSize = 1;
             if (currentImage.batchId) {
-                // Zähle alle Bilder mit dieser batchId
+                // Count all images with this batchId
                 batchSize = allImages.filter(img => img.batchId === currentImage.batchId).length;
                 batchDelete = true;
             }
@@ -785,10 +785,10 @@ export function initLightbox({
                     }
                 }
                 await loadImageGrid();
-                // Nach dem Reload: Lightbox ggf. wieder öffnen
+                // After reload: reopen lightbox if applicable
                 let reopenIdx = -1;
                 if (currentImage.batchId) {
-                    // Suche das Bild mit gleicher batchId und imageNumber
+                    // Find the image with the same batchId and imageNumber
                     reopenIdx = galleryImages.findIndex(img => img.batchId === currentImage.batchId && String(img.imageNumber) === String(currentImage.imageNumber));
                 } else {
                     reopenIdx = galleryImages.findIndex(img => img.file === currentImage.file);
@@ -821,7 +821,7 @@ export function initLightbox({
             }
         });
     }
-    // Hilfsfunktion: Zeige ein Bild aus allImages direkt in der Lightbox (ohne Navigation)
+    // Helper: show an image from allImages directly in the lightbox (no navigation)
     function showBatchImageDirect(imgObj) {
         tempDirectImage = imgObj;
         lightboxImage.src = imgObj.file;
@@ -840,7 +840,7 @@ export function initLightbox({
             reusePromptBtn.classList.add('hidden');
         }
 
-        // --- Metadaten hinzufügen (wie in openGalleryLightbox) ---
+        // --- Add metadata (same as in openGalleryLightbox) ---
         if (imgObj.user) {
             let dateStr = '';
             if (imgObj.timestamp) {
@@ -884,7 +884,7 @@ export function initLightbox({
             // Qualität und Seitenverhältnis
             const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high', 'gemini': 'settings.quality.gemini' };
             const quality = translate(qualityKeyMap[imgObj.quality] || imgObj.quality);
-            let aspectRatio = imgObj.size;
+            let aspectRatio = imgObj.aspect_class;
             if (typeof aspectRatio === 'string' && aspectRatio.includes('x')) {
                 const [w, h] = aspectRatio.toLowerCase().split('x');
                 const wf = parseFloat(w), hf = parseFloat(h);

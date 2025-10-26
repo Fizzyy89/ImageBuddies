@@ -26,7 +26,7 @@ function list_ref_images($batchId, $owner, $currentUser, $isAdmin) {
     return $out;
 }
 
-// View-only Flag aus DB lesen
+// Read view-only flag from DB
 $viewOnlyAllowed = false;
 $row = db_row('SELECT value FROM settings WHERE key = ?', ['customization']);
 if ($row) {
@@ -36,15 +36,15 @@ if ($row) {
 
 if (!$isLoggedIn && (!isset($_SERVER['HTTP_X_VIEW_ONLY']) || !$viewOnlyAllowed)) {
     http_response_code(401);
-    echo json_encode(['error' => 'Nicht eingeloggt.']);
+    echo json_encode(['error' => 'Not logged in.']);
     exit;
 }
 
-// Query sichtbare Bilder
+// Query visible images
 $params = [];
 $where = 'g.deleted = 0';
 if (!$isAdmin) {
-    // private Bilder nur für Owner sichtbar
+    // Private images visible to owner only
     if ($isLoggedIn) {
         $where .= ' AND (g.private = 0 OR u.username = ?)';
         $params[] = $currentUser;
@@ -54,7 +54,7 @@ if (!$isAdmin) {
 }
 
 $rows = db_rows(
-    'SELECT g.created_at, g.filename, g.prompt, g.size, g.quality, g.private, g.ref_image_count, g.batch_id, g.image_number, u.username AS user
+    'SELECT g.created_at, g.filename, g.prompt, g.aspect_class, g.quality, g.private, g.ref_image_count, g.batch_id, g.image_number, u.username AS user
      FROM generations g
      JOIN users u ON u.id = g.user_id
      WHERE ' . $where . '
@@ -66,7 +66,7 @@ $result = [];
 foreach ($rows as $r) {
     $filePath = dirname(__DIR__) . '/images/' . $r['filename'];
     if (!is_file($filePath)) {
-        // Datei fehlt, aber Eintrag bleibt in DB. Überspringen für Anzeige.
+        // File missing but row remains in DB; skip for display
         continue;
     }
     $result[] = [
@@ -74,7 +74,7 @@ foreach ($rows as $r) {
         'timestamp' => $r['created_at'],
         'prompt' => $r['prompt'],
         'user' => $r['user'],
-        'size' => $r['size'],
+        'aspect_class' => $r['aspect_class'],
         'quality' => $r['quality'],
         'private' => (string)($r['private'] ? '1' : '0'),
         'ref_image_count' => (string)($r['ref_image_count']),

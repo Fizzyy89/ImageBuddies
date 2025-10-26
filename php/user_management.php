@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/password_validation.php';
 require_once __DIR__ . '/db.php';
 
-// Prüfe Admin-Berechtigung
+// Check admin permission
 if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(['error_key' => 'error.userManagement.noPermission']);
@@ -16,7 +16,7 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'list':
-        // Liste alle Benutzer auf (ohne Passwörter)
+        // List all users (without passwords)
         $rows = db_rows('SELECT username, role FROM users ORDER BY username COLLATE NOCASE');
         $userList = [];
         foreach ($rows as $r) {

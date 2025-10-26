@@ -1,5 +1,5 @@
 <?php
-// gemini_proxy.php - Proxy für Gemini API (Nano Banana Bildbearbeitung)
+// gemini_proxy.php - Proxy for Gemini API (image editing)
 session_start();
 if (!isset($_SESSION['user'])) {
     http_response_code(401);
@@ -9,14 +9,14 @@ if (!isset($_SESSION['user'])) {
 
 header('Content-Type: application/json');
 
-// Nur POST zulassen
+// Allow POST only
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error_key' => 'error.proxy.postOnly']);
     exit;
 }
 
-// Gemini API Key aus DB (verschlüsselt) laden
+// Load Gemini API key from DB (encrypted)
 $GEMINI_KEY = null;
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/crypto.php';
@@ -34,11 +34,11 @@ if (!$GEMINI_KEY) {
 $endpoint = $_GET['endpoint'] ?? '';
 
 if ($endpoint === 'edit') {
-    // Bildbearbeitung mit gemini-2.5-flash-image
+    // Image editing with gemini-2.5-flash-image
     $model = 'gemini-2.5-flash-image';
     $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$GEMINI_KEY}";
     
-    // Prüfe ob Prompt vorhanden ist
+    // Check if prompt is present
     if (!isset($_POST['prompt']) || empty(trim($_POST['prompt']))) {
         http_response_code(400);
         echo json_encode(['error_key' => 'error.proxy.missingPrompt']);
@@ -47,14 +47,14 @@ if ($endpoint === 'edit') {
     
     $prompt = trim($_POST['prompt']);
     
-    // Prüfe ob mindestens ein Bild hochgeladen wurde
+    // Check if at least one image was uploaded
     if (!isset($_FILES['image']) || empty($_FILES['image']['tmp_name'])) {
         http_response_code(400);
         echo json_encode(['error_key' => 'error.proxy.missingImage']);
         exit;
     }
     
-    // Verarbeite das/die Bilder
+    // Process uploaded image(s)
     $images = [];
     if (is_array($_FILES['image']['tmp_name'])) {
         // Multiple images
@@ -88,17 +88,17 @@ if ($endpoint === 'edit') {
         exit;
     }
     
-    // Begrenze auf maximal 3 Bilder
+    // Limit to max 3 images
     if (count($images) > 3) {
         $images = array_slice($images, 0, 3);
     }
     
-    // Erstelle die API-Anfrage
+    // Build API request
     $parts = [
         ['text' => $prompt]
     ];
     
-    // Füge alle Bilder hinzu
+    // Attach all images
     foreach ($images as $image) {
         $parts[] = [
             'inlineData' => [
@@ -120,7 +120,7 @@ if ($endpoint === 'edit') {
         ]
     ];
 
-    // Optional: Seitenverhältnis übergeben
+    // Optional: pass aspect ratio
     $aspectRatio = $_POST['aspect_ratio'] ?? '';
     if ($aspectRatio) {
         $requestPayload['generationConfig']['imageConfig'] = [
@@ -154,10 +154,10 @@ if ($endpoint === 'edit') {
         exit;
     }
     
-    // Verarbeite die Antwort
+    // Process response
     $data = json_decode($response, true);
     
-    // Extrahiere das bearbeitete Bild
+    // Extract edited image
     $editedBase64Image = null;
     $editedMimeType = null;
     
@@ -177,7 +177,7 @@ if ($endpoint === 'edit') {
         exit;
     }
     
-    // Gib das Bild im OpenAI-kompatiblen Format zurück
+    // Return image in OpenAI-compatible format
     echo json_encode([
         'data' => [
             [

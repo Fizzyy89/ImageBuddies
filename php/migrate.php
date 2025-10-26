@@ -4,14 +4,14 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/db.php';
 
-// Nur für Admins
+// Admins only
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;
 }
 
-// Idempotentes Schema anlegen
+// Create idempotent schema
 db_tx(function () {
     db()->exec(
         'CREATE TABLE IF NOT EXISTS users (
@@ -40,7 +40,6 @@ db_tx(function () {
             user_id INTEGER NOT NULL REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
             filename TEXT,
             prompt TEXT,
-            size TEXT,
             quality TEXT,
             private INTEGER NOT NULL DEFAULT 0,
             ref_image_count INTEGER NOT NULL DEFAULT 0,
@@ -56,6 +55,60 @@ db_tx(function () {
             UNIQUE(batch_id, image_number)
         );'
     );
+
+    // If legacy column "size" exists, migrate to new schema without it
+    $cols = db_rows('PRAGMA table_info(generations)');
+    $hasSize = false;
+    foreach ($cols as $col) {
+        if (isset($col['name']) && $col['name'] === 'size') { $hasSize = true; break; }
+    }
+    if ($hasSize) {
+        // Rebuild without size
+        db()->exec('ALTER TABLE generations RENAME TO generations_old');
+        db()->exec(
+            'CREATE TABLE generations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                mode TEXT NOT NULL CHECK (mode IN ("openai","gemini")),
+                batch_id TEXT,
+                image_number INTEGER NOT NULL DEFAULT 1,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+                filename TEXT,
+                prompt TEXT,
+                quality TEXT,
+                private INTEGER NOT NULL DEFAULT 0,
+                ref_image_count INTEGER NOT NULL DEFAULT 0,
+                width INTEGER,
+                height INTEGER,
+                aspect_class TEXT,
+                deleted INTEGER NOT NULL DEFAULT 0,
+                cost_image_cents INTEGER NOT NULL DEFAULT 0,
+                cost_ref_cents INTEGER NOT NULL DEFAULT 0,
+                cost_total_cents INTEGER NOT NULL DEFAULT 0,
+                pricing_schema TEXT NOT NULL DEFAULT "2025-10",
+                UNIQUE(filename),
+                UNIQUE(batch_id, image_number)
+            );'
+        );
+        // While copying: keep aspect_class, fallback to size if empty
+        db()->exec(
+            'INSERT INTO generations (
+                id, created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
+                ref_image_count, width, height, aspect_class, deleted,
+                cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
+            )
+            SELECT 
+                id, created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
+                ref_image_count, width, height,
+                (CASE WHEN aspect_class IS NULL OR aspect_class = "" THEN size ELSE aspect_class END) AS aspect_class,
+                deleted, cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
+            FROM generations_old'
+        );
+        db()->exec('DROP TABLE generations_old');
+        db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_visible ON generations (deleted, private, created_at DESC)');
+        db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_user ON generations (user_id, created_at DESC)');
+        db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_batch ON generations (batch_id)');
+    }
 
     db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_visible ON generations (deleted, private, created_at DESC)');
     db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_user ON generations (user_id, created_at DESC)');
@@ -112,7 +165,7 @@ if (file_exists($customizationFile)) {
     }
 }
 
-// ensure gemini_available key exists based on encrypted key
+// Ensure gemini_available key exists based on encrypted key
 $gk = db_row('SELECT value FROM settings WHERE key = ?', ['gemini_key_enc']);
 if ($gk) {
     db_exec('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', [
@@ -148,7 +201,7 @@ if (file_exists($logfile)) {
         $imagePath = __DIR__ . '/../images/' . $filename;
         $deleted = is_file($imagePath) ? 0 : 1;
 
-        // Kosten
+        // Costs
         if ($mode === 'gemini' || $quality === 'gemini') {
             $imageCost = 3; // Cent
             $refCost = $refCount * 15;
@@ -158,16 +211,50 @@ if (file_exists($logfile)) {
         }
         $totalCost = $imageCost + $refCost;
 
-        // Skip bei bestehendem filename
+        // Skip if filename already exists
         $exists = db_row('SELECT id FROM generations WHERE filename = ?', [$filename]);
         if ($filename !== '' && $exists) { $summary['skippedDuplicates']++; continue; }
 
+        // Normalize aspect_class
+        $aspect = '1:1';
+        if (is_string($size)) {
+            if (strpos($size, 'x') !== false) {
+                $partsWH = explode('x', strtolower($size));
+                $w = floatval($partsWH[0]);
+                $h = floatval($partsWH[1] ?? 0);
+                if ($w > 0 && $h > 0) {
+                    $ratio = $w / $h;
+                    $allowed = [
+                        '1:1' => 1.0,
+                        '2:3' => 2/3,
+                        '3:2' => 3/2,
+                        '3:4' => 3/4,
+                        '4:3' => 4/3,
+                        '4:5' => 4/5,
+                        '5:4' => 5/4,
+                        '9:16' => 9/16,
+                        '16:9' => 16/9,
+                        '21:9' => 21/9
+                    ];
+                    $best = '1:1';
+                    $bestDiff = PHP_FLOAT_MAX;
+                    foreach ($allowed as $k => $v) {
+                        $d = abs($ratio - $v);
+                        if ($d < $bestDiff) { $bestDiff = $d; $best = $k; }
+                    }
+                    $aspect = $best;
+                }
+            } elseif (strpos($size, ':') !== false) {
+                $aspect = $size;
+            }
+        }
+
         db_exec(
             'INSERT OR IGNORE INTO generations (
-                created_at, mode, batch_id, image_number, user_id, filename, prompt, size, quality, private,
+                created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
                 ref_image_count, width, height, aspect_class, deleted,
                 cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $timestamp,
                 ($mode === 'gemini' ? 'gemini' : 'openai'),
@@ -176,13 +263,12 @@ if (file_exists($logfile)) {
                 $user_id,
                 $filename,
                 $prompt,
-                $size,
                 $quality,
                 $private,
                 $refCount,
                 null,
                 null,
-                $size,
+                $aspect,
                 $deleted,
                 $imageCost,
                 $refCost,
@@ -194,7 +280,7 @@ if (file_exists($logfile)) {
     }
 }
 
-// statistics.csv (für evtl. gelöschte Bilder, die nicht mehr im Log stehen)
+// statistics.csv (for possibly deleted images that no longer appear in the log)
 $statsfile = __DIR__ . '/../database/statistics.csv';
 if (file_exists($statsfile)) {
     $lines = file($statsfile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -217,14 +303,14 @@ if (file_exists($statsfile)) {
 
         $user_id = upsert_user($user);
 
-        // Duplicate detection: existiert Eintrag für gleiche (batch_id, image_number)?
+        // Duplicate detection: existing entry for the same (batch_id, image_number)?
         $dup = null;
         if (!is_null($batchId)) {
             $dup = db_row('SELECT id FROM generations WHERE batch_id = ? AND image_number = ?', [$batchId, $imageNumber]);
         }
         if ($dup) { $summary['skippedDuplicates']++; continue; }
 
-        // Kosten
+        // Costs
         if ($quality === 'gemini') {
             $imageCost = 3;
             $refCost = $refCount * 15;
@@ -236,12 +322,46 @@ if (file_exists($statsfile)) {
         }
         $totalCost = $imageCost + $refCost;
 
+        // Normalize aspect_class
+        $aspect = '1:1';
+        if (is_string($size)) {
+            if (strpos($size, 'x') !== false) {
+                $partsWH = explode('x', strtolower($size));
+                $w = floatval($partsWH[0]);
+                $h = floatval($partsWH[1] ?? 0);
+                if ($w > 0 && $h > 0) {
+                    $ratio = $w / $h;
+                    $allowed = [
+                        '1:1' => 1.0,
+                        '2:3' => 2/3,
+                        '3:2' => 3/2,
+                        '3:4' => 3/4,
+                        '4:3' => 4/3,
+                        '4:5' => 4/5,
+                        '5:4' => 5/4,
+                        '9:16' => 9/16,
+                        '16:9' => 16/9,
+                        '21:9' => 21/9
+                    ];
+                    $best = '1:1';
+                    $bestDiff = PHP_FLOAT_MAX;
+                    foreach ($allowed as $k => $v) {
+                        $d = abs($ratio - $v);
+                        if ($d < $bestDiff) { $bestDiff = $d; $best = $k; }
+                    }
+                    $aspect = $best;
+                }
+            } elseif (strpos($size, ':') !== false) {
+                $aspect = $size;
+            }
+        }
+
         db_exec(
             'INSERT OR IGNORE INTO generations (
-                created_at, mode, batch_id, image_number, user_id, filename, prompt, size, quality, private,
+                created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
                 ref_image_count, width, height, aspect_class, deleted,
                 cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $date,
                 $mode,
@@ -250,13 +370,12 @@ if (file_exists($statsfile)) {
                 $user_id,
                 null,
                 null,
-                $size,
                 $quality,
                 0,
                 $refCount,
                 null,
                 null,
-                $size,
+                $aspect,
                 1,
                 $imageCost,
                 $refCost,

@@ -92,7 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     user_id INTEGER NOT NULL,
                     filename TEXT,
                     prompt TEXT,
-                    size TEXT,
                     quality TEXT,
                     private INTEGER NOT NULL DEFAULT 0,
                     ref_image_count INTEGER NOT NULL DEFAULT 0,

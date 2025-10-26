@@ -23,7 +23,7 @@ if (!$batchId || !$imageNumber) {
 
 require_once __DIR__ . '/db.php';
 
-// DB-Bilder der Batch holen
+// Fetch batch images from DB
 $rows = db_rows('SELECT g.id, g.image_number, u.username AS owner FROM generations g JOIN users u ON u.id=g.user_id WHERE g.deleted=0 AND g.batch_id = ?', [$batchId]);
 if (count($rows) < 2) {
     http_response_code(400);
@@ -31,7 +31,7 @@ if (count($rows) < 2) {
     exit;
 }
 
-// Finde current main (image_number=1) und target
+// Find current main (image_number=1) and target
 $currentMain = null;
 $target = null;
 foreach ($rows as $r) {
@@ -43,20 +43,20 @@ if (!$currentMain || !$target) {
     echo json_encode(['error_key' => 'error.batchMainImage.imageNotFound']);
     exit;
 }
-// Berechtigung
+// Permission check
 if (!$isAdmin && $currentMain['owner'] !== $currentUser) {
     http_response_code(403);
     echo json_encode(['error_key' => 'error.batchMainImage.noPermission']);
     exit;
 }
 
-// Wenn Ziel bereits 1 ist, nichts tun
+// If target is already 1, nothing to do
 if (intval($imageNumber) === 1) {
     echo json_encode(['success' => true]);
     exit;
 }
 
-// Dreistufiger Swap mit temporärem Wert, um UNIQUE-Verstöße zu vermeiden
+// Three-step swap with a temporary value to avoid UNIQUE constraint violations
 try {
     $targetNumber = intval($imageNumber);
     $batchIdParam = $batchId;

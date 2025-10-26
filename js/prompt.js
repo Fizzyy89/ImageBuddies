@@ -1,15 +1,15 @@
 import { translate, currentLanguage } from './i18n.js';
-// Prompt- und Referenzbild-Handling-Modul
-// Verantwortlich für Prompt-Optimierung, Bild-Upload, Drag&Drop, Bildvorschau, Referenzbilder und Kostenberechnung
+// Prompt and reference image handling module
+// Responsible for prompt optimization, image upload, drag & drop, preview, reference images and cost calculation
 
 export let uploadedFiles = [];
 export let currentMode = 'openai'; // 'openai' or 'gemini'
 export let geminiAvailable = false;
 
-// Cache für die Random-Prompt-Elemente
+// Cache for random prompt elements
 let randomPromptElements = null;
 
-// Funktion zum Laden der Random-Prompt-Elemente
+// Load random prompt elements
 async function loadRandomPromptElements() {
     if (randomPromptElements) {
         return randomPromptElements;
@@ -33,7 +33,7 @@ function getRandomElement(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
-// Funktion zur Generierung eines strukturierten Random-Prompts
+// Generate structured random prompt
 function generateStructuredRandomPrompt(elements) {
     const subject = getRandomElement(elements.subjects);
     const artStyle = getRandomElement(elements.artStyles);
@@ -53,7 +53,7 @@ function generateStructuredRandomPrompt(elements) {
         .replace('{details}', details);
 }
 
-// Funktion zur Erstellung des sprachspezifischen LLM-Prompts
+// Create language-specific LLM prompt
 function createLanguageSpecificPrompt(structuredPrompt) {
     const instruction = translate('prompt.llmInstruction');
     return `${instruction} "${structuredPrompt}"`;
@@ -82,16 +82,16 @@ export function initSurpriseMeHandler({
         surpriseMeBtn.disabled = true;
 
         try {
-            // Lade die Random-Prompt-Elemente
+            // Load the random prompt elements
             const elements = await loadRandomPromptElements();
             if (!elements) {
                 throw new Error(translate('error.loadRandomElementsFailed'));
             }
 
-            // Generiere einen strukturierten Random-Prompt
+            // Generate a structured random prompt
             const structuredPrompt = generateStructuredRandomPrompt(elements);
 
-            // Sende den strukturierten Prompt an das LLM zur Verfeinerung
+            // Send the structured prompt to the LLM for refinement
             const response = await fetch('php/openai_proxy.php?endpoint=random', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -112,12 +112,12 @@ export function initSurpriseMeHandler({
                 promptInput.value = randomPrompt;
                 setOptimizeBtnState(document.getElementById('optimizePromptBtn'), promptInput);
             } else {
-                // Fallback: Verwende den strukturierten Prompt direkt
+                // Fallback: use the structured prompt directly
                 promptInput.value = structuredPrompt;
                 setOptimizeBtnState(document.getElementById('optimizePromptBtn'), promptInput);
             }
         } catch (e) {
-            // Bei Fehler: Versuche Fallback mit direktem strukturiertem Prompt
+            // On error: try fallback with structured prompt directly
             try {
                 const elements = await loadRandomPromptElements();
                 if (elements) {

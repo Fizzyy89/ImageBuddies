@@ -77,10 +77,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lightboxOpenNewTabBtn = document.getElementById('lightboxOpenNewTabBtn');
     const lightboxCopyUrlBtn = document.getElementById('lightboxCopyUrlBtn');
     const deleteImageBtn = document.getElementById('deleteImageBtn');
-    // Privat-Checkbox
+    // Private checkbox
     const privateCheckboxContainer = document.getElementById('privateCheckboxContainer');
     const privateCheckbox = document.getElementById('privateCheckbox');
-    // Admin Private Images Toggle
+    // Admin private images toggle
     const adminPrivateToggle = document.getElementById('adminPrivateToggle');
     const adminPrivateBtn = document.getElementById('adminPrivateBtn');
     // --- Mobile Menu Elements ---
@@ -146,14 +146,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     (async () => {
         await checkAdminStatus();
         
-        // Admin-Private-Button für Admins anzeigen und Event-Handler hinzufügen
+        // Show admin private toggle for admins and attach handler
         if (isAdmin && adminPrivateToggle && adminPrivateBtn) {
             adminPrivateToggle.classList.remove('hidden');
             
-            // Button-Zustand initial setzen
+            // Initialize button state
             updateAdminPrivateButtonState();
             
-            // Event-Handler für Admin-Private-Button
+            // Handler for admin private button
             adminPrivateBtn.addEventListener('click', () => {
                 const newState = !getShowAdminPrivateImages();
                 setShowAdminPrivateImages(newState);
@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Lightbox initialisieren erst nach Admin-Check
+        // Initialize lightbox after admin check
         initLightbox({
             lightbox,
             lightboxImage,
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     })();
 
-    // Funktion zum Aktualisieren des Admin-Private-Button-Zustands
+    // Update admin private button visual state
     function updateAdminPrivateButtonState() {
         if (!adminPrivateBtn) return;
         
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const icon = adminPrivateBtn.querySelector('svg path');
         
         if (isActive) {
-            // Aktiviert - normales Auge-Icon
+            // Enabled — normal eye icon
             adminPrivateBtn.classList.add('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
             adminPrivateBtn.classList.remove('bg-gray-50', 'dark:bg-gray-700', 'text-gray-500', 'dark:text-gray-400');
             adminPrivateBtn.title = translate('gallery.admin.privateToggle.hide');
@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 icon.setAttribute('d', 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z M15 12a3 3 0 11-6 0 3 3 0 016 0z');
             }
         } else {
-            // Deaktiviert - durchgestrichenes Auge-Icon
+            // Disabled — crossed eye icon
             adminPrivateBtn.classList.remove('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
             adminPrivateBtn.classList.add('bg-gray-50', 'dark:bg-gray-700', 'text-gray-500', 'dark:text-gray-400');
             adminPrivateBtn.title = translate('gallery.admin.privateToggle.show');
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Prompt-Optimierung initialisieren
+    // Initialize prompt optimization
     initPromptHandlers({
         promptInput,
         optimizeBtn,
@@ -230,10 +230,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         surpriseMeError
     });
 
-    // Mode-Toggle initialisieren (OpenAI vs Gemini)
+    // Initialize mode toggle (OpenAI vs Gemini)
     initModeToggle();
 
-    // Bild-Upload Input erstellen
+    // Create image upload input
     const imageUploadInput = createImageUploadInput((e) => {
         const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
         if (files.length > 0) {
@@ -260,12 +260,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Paste-Handler für Bilder im Prompt-Textarea
+    // Paste handler for images in prompt textarea
     if (promptInput) {
         promptInput.addEventListener('paste', (e) => handleImagePaste(e, uploadedFiles, () => updateImagePreviews(uploadedFiles, imagePreviewContainer, removeAllImagesBtn, () => updateTotalCost(uploadedFiles))));
     }
 
-    // Drag & Drop Handler
+    // Drag & drop handlers
     if (promptInput) {
         promptInput.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         promptInput.addEventListener('drop', (e) => handleImageDrop(e, uploadedFiles, () => updateImagePreviews(uploadedFiles, imagePreviewContainer, removeAllImagesBtn, () => updateTotalCost(uploadedFiles)), promptInput));
     }
 
-    // Bildvorschau initialisieren
+    // Initialize image preview
     updateImagePreviews(uploadedFiles, imagePreviewContainer, removeAllImagesBtn, () => updateTotalCost(uploadedFiles));
 
     // Remove All Images Button
@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Download Button Handler (für generiertes Bild)
+    // Download button handler (generated image)
     downloadBtn.onclick = () => {
         if (!generatedImage.src || generatedImage.classList.contains('hidden')) return;
         downloadImage(generatedImage.src, promptInput.value.trim() || 'generated_image');
@@ -354,7 +354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Blockiere alle API-Calls, solange nicht eingeloggt
+    // Block all API calls while not logged in
     async function requireLoginOrBlock(fn) {
         const res = await fetch('php/session_auth.php?action=status');
         const data = await res.json();
@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fn();
     }
 
-    // Initial Login-Check
+    // Initial login check
     checkLogin();
 
     if (logoutBtn) {
@@ -376,12 +376,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Toggle-Buttons für die Galerie
+    // Toggle buttons for the gallery
     if (showAllBtn && showMineBtn) {
         showAllBtn.addEventListener('click', () => {
             if (!getShowOnlyUserImages()) return;
             setShowOnlyUserImages(false);
-            // Aktive/inaktive Klassen setzen
+            // Set active/inactive classes
             showAllBtn.classList.add('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
             showAllBtn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-50', 'dark:hover:bg-slate-700');
             showMineBtn.classList.remove('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showMineBtn.addEventListener('click', () => {
             if (getShowOnlyUserImages()) return;
             setShowOnlyUserImages(true);
-            // Aktive/inaktive Klassen setzen
+            // Set active/inactive classes
             showMineBtn.classList.add('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
             showMineBtn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-50', 'dark:hover:bg-slate-700');
             showAllBtn.classList.remove('bg-indigo-50', 'dark:bg-indigo-500/10', 'text-indigo-600', 'dark:text-indigo-400');
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Grid-Größen-Slider
+    // Grid size slider
     const gridSizeSlider = document.getElementById('gridSizeSlider');
     if (gridSizeSlider) {
         gridSizeSlider.value = getGridSize();
@@ -411,11 +411,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Galerie-Grid-Logik und Lightbox-Logik entfernen und durch Modul-Initialisierung ersetzen
+    // Keep only module initialization for gallery grid and lightbox
     function setCurrentGalleryIndex(idx) { currentGalleryIndex = idx; }
     function getCurrentGalleryIndex() { return currentGalleryIndex; }
 
-    // Galerie-Grid initialisieren
+    // Initialize gallery grid
     function setGalleryImages(arr) {
         galleryImages.length = 0;
         galleryImages.push(...arr);
@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setGalleryImages
     });
 
-    // --- Mobile Menu Logic ---
+    // --- Mobile menu logic ---
     function openMobileMenu() {
         mobileMenu.classList.remove('hidden');
         setTimeout(() => {
@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.style.overflow = '';
     }
 
-    // Mobile Login Button Handler
+    // Mobile login button handler
     const mobileLoginBtn = document.getElementById('mobileLoginBtn');
     if (mobileLoginBtn) {
         mobileLoginBtn.addEventListener('click', () => {
@@ -486,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // === Seitenverhältnis-Buttons (aspect-btn) ===
+    // === Aspect ratio buttons (aspect-btn) ===
     document.querySelectorAll('.aspect-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.aspect-btn').forEach(b => {
@@ -497,7 +497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.classList.remove('bg-white', 'dark:bg-slate-800', 'border-gray-200', 'dark:border-slate-700', 'text-gray-700', 'dark:text-gray-300');
         });
     });
-    // === Qualitäts-Buttons (quality-btn) ===
+    // === Quality buttons (quality-btn) ===
     document.querySelectorAll('.quality-btn:not([disabled])').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.quality-btn:not([disabled])').forEach(b => {
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetch('./php/get_customization.php')
       .then(res => res.json())
       .then(data => {
-        // Einfache Platzhalter
+        // Simple placeholders
         [
           'siteName',
           'poweredBy',
@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         });
         
-        // Features im Header anzeigen
+        // Show features in header
         const featuresDisplay = document.getElementById('featuresDisplay');
         if (featuresDisplay && Array.isArray(data.features)) {
             featuresDisplay.innerHTML = data.features.map(feature => `
@@ -542,11 +542,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             `).join('');
         }
 
-        // Setze loginContact
+        // Set loginContact
         document.querySelectorAll('[data-custom="loginContact"]').forEach(el => {
           el.innerHTML = data.loginContact || '';
         });
-        // View-Only-Feature steuern
+        // Control view-only feature
         if (!data.viewOnlyAllowed) {
           const viewOnlyBtn = document.getElementById('viewOnlyBtn');
           const viewOnlyInfo = document.getElementById('viewOnlyInfo');
@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (viewOnlyBtn) viewOnlyBtn.style.display = 'none';
           if (viewOnlyInfo) viewOnlyInfo.style.display = 'none';
           if (mobileViewOnlyInfo) mobileViewOnlyInfo.style.display = 'none';
-          // Falls jemand per localStorage noch im View-Only-Modus ist, zurücksetzen
+          // If someone is still in view-only via localStorage, reset it
           localStorage.removeItem('viewOnly');
         }
       });
@@ -568,16 +568,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Initialisiere Statistiken
+    // Initialize statistics
     initStatistics();
     
-    // Initialisiere Benutzerverwaltung
+    // Initialize user management
     initUserManagement();
 
-    // Initialisiere Benutzerprofil
+    // Initialize user profile
     initUserProfile();
 
-    // Initialisiere Anpassungen
+    // Initialize customization
     initCustomization();
 
     // Update setup form handling
@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 language: document.getElementById('setupLanguage').value
             };
 
-            // Validiere Passwortlänge
+            // Validate password length
             const validation = validatePassword(formData.password);
             if (!validation.valid) {
                 setupError.textContent = translate(validation.error_key);
@@ -625,7 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Add user form handling ist in user_management.js implementiert
+    // Add user form handling is implemented in user_management.js
 });
 
 function validatePassword(password) {

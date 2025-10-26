@@ -29,7 +29,7 @@ export function initUserProfile() {
             userDropdown.classList.toggle('hidden');
         });
 
-        // Schließe Dropdown bei Klick außerhalb
+        // Close dropdown on outside click
         document.addEventListener('click', (e) => {
             if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
                 userDropdown.classList.add('hidden');
@@ -86,7 +86,7 @@ export function initUserProfile() {
         });
     }
 
-    // Schließen mit Escape-Taste
+    // Close with escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !passwordModal.classList.contains('hidden')) {
             passwordModal.classList.add('hidden');
@@ -95,7 +95,7 @@ export function initUserProfile() {
         }
     });
 
-    // Klick außerhalb schließt Modal
+    // Click outside closes modal
     passwordModal.addEventListener('click', (e) => {
         if (e.target === passwordModal) {
             passwordModal.classList.add('hidden');
@@ -114,14 +114,14 @@ export function initUserProfile() {
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
-            // Validierung
+            // Validation
             if (newPassword !== confirmPassword) {
                 passwordError.textContent = translate('error.passwordsDoNotMatch');
                 passwordError.classList.remove('hidden');
                 return;
             }
 
-            // Validiere Passwortlänge
+            // Validate password length
             const validation = validatePassword(newPassword);
             if (!validation.valid) {
                 passwordError.textContent = translate(validation.error_key);
@@ -165,7 +165,7 @@ async function openMyImagesModal() {
     const myRefsGrid = document.getElementById('myRefsGrid');
     if (!myImagesModal || !myGenerationsList || !myRefsGrid) return;
 
-    // Format timestamp identisch zur Lightbox
+    // Format timestamp identical to lightbox
     const formatTimestamp = (ts) => {
         if (!ts || typeof ts !== 'string') return '';
         let parts = ts.split('T');
@@ -294,8 +294,8 @@ async function openMyImagesModal() {
             </svg>
             ${qLabel}
         `;
-        // Aspect Ratio / Size
-        let aspect = first.size || '';
+        // Aspect Ratio: nur aspect_class
+        let aspect = first.aspect_class || '';
         if (typeof aspect === 'string' && aspect.includes('x')) {
             const [w, h] = aspect.toLowerCase().split('x');
             const gcd = (a,b)=>b?gcd(b,a%b):a; const g=gcd(parseInt(w)||0, parseInt(h)||0) || 1;
@@ -334,7 +334,7 @@ async function openMyImagesModal() {
         row.appendChild(right);
         myGenerationsList.appendChild(row);
 
-        // Row click toggles selection, but not when clicking checkbox or thumbnail
+        // Row click toggles selection, except when clicking checkbox or thumbnail
         row.addEventListener('click', (e) => {
             if (e.target.closest('input') || e.target.closest('img.myGenThumb')) return;
             cb.checked = !cb.checked;
@@ -345,7 +345,7 @@ async function openMyImagesModal() {
         thumb.title = translate('myImages.thumbnailTooltip');
         thumb.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Lightbox im Vordergrund anzeigen: Modal schließen, dann Event feuern
+            // Show lightbox in foreground: close modal, then fire event
             try { myImagesModal.classList.add('hidden'); } catch (_) {}
             try {
                 window.dispatchEvent(new CustomEvent('showBatchImage', { detail: { image: first } }));
@@ -404,14 +404,14 @@ async function openMyImagesModal() {
         const allChecked = boxes.every(b => b.checked);
         const newState = selectAll.checked ? true : !allChecked && selectAll.indeterminate ? true : selectAll.checked;
         boxes.forEach(b => b.checked = newState);
-        // Zustand der Master-Checkbox setzen
+        // Update master checkbox state
         const anyChecked = boxes.some(b => b.checked);
         const allNow = boxes.every(b => b.checked);
         selectAll.indeterminate = anyChecked && !allNow;
         selectAll.checked = allNow;
     };
 
-    // Update Master-Checkbox beim Einzelklick
+    // Update master checkbox when individual selection changes
     Array.from(document.querySelectorAll('.myGenSel')).forEach(b => b.addEventListener('change', () => {
         updateMaster();
     }));

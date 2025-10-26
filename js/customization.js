@@ -11,7 +11,7 @@ function updateHeaderVisibility(hideHeader, isInitialLoad = false) {
         if (hideHeader) {
             heroSection.style.display = 'none';
             mainContentContainer.style.paddingTop = '7rem';
-            // Scroll nach oben, beim initialen Laden instant, sonst smooth
+            // Scroll to top; instant on initial load, otherwise smooth
             window.scrollTo({
                 top: 0,
                 behavior: isInitialLoad ? 'instant' : 'smooth'
@@ -40,7 +40,7 @@ function showNotification(messageKey, type = 'success') {
     }, 3000);
 }
 
-// Features dynamisch laden
+// Dynamically render feature inputs
 function updateFeaturesInputs(features = [], featuresContainer) {
     if (!featuresContainer) {
         return;
@@ -62,13 +62,13 @@ function updateFeaturesInputs(features = [], featuresContainer) {
         `;
         featuresContainer.appendChild(div);
 
-        // Event Listener für Delete-Button
+        // Delete button handler
         div.querySelector('.delete-feature').addEventListener('click', () => {
             div.remove();
         });
     });
 
-    // "Feature hinzufügen" Button
+    // "Add feature" button
     const addButton = document.createElement('button');
     addButton.type = 'button';
     addButton.className = 'w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition';
@@ -86,7 +86,7 @@ function updateFeaturesInputs(features = [], featuresContainer) {
     featuresContainer.appendChild(addButton);
 }
 
-// Aktuelle Features aus den Inputs holen
+// Collect current features from inputs
 function getCurrentFeatures(featuresContainer) {
     return Array.from(featuresContainer.querySelectorAll('input[type="text"]'))
         .map(input => input.value)
@@ -153,7 +153,7 @@ export function initCustomization() {
     let loadedApiKey = '';
     let loadedGeminiKey = '';
 
-    // Prüfe ob User Admin ist und zeige Button entsprechend
+    // Check if user is admin and show button accordingly
     fetch('php/session_auth.php?action=status')
         .then(res => res.json())
         .then(data => {
@@ -193,7 +193,7 @@ export function initCustomization() {
         });
     }
 
-    // Event Listener
+    // Event listeners
     [customButton, mobileCustomButton].forEach(btn => {
         if (btn) {
             btn.addEventListener('click', () => {
@@ -346,11 +346,11 @@ export function initCustomization() {
                         })
                         .catch(() => showNotification('notification.geminiKeySaveFailed', 'error'));
                     }
-                    // Aktualisiere die Seite ohne Neuladen
+                    // Update page without full reload
                     updatePageContent(data);
                     customModal.classList.add('hidden');
                     showNotification('notification.changesSavedSuccess', 'success');
-                    // Seite neu laden, damit alle Änderungen (inkl. Keys/Flags) global greifen
+                    // Reload page so all changes (including keys/flags) apply globally
                     setTimeout(() => {
                         window.location.reload();
                     }, 300);
@@ -380,7 +380,7 @@ export function initCustomization() {
     initLanguageSelect();
 }
 
-// Lade aktuelle Customization
+// Load current customization
 async function loadCustomization(featuresContainer) {
     try {
         const response = await fetch('./php/get_customization.php');
@@ -390,7 +390,7 @@ async function loadCustomization(featuresContainer) {
         // Dispatch event for language select
         document.dispatchEvent(new CustomEvent('customizationLoaded', { detail: data }));
 
-        // Formular mit aktuellen Werten füllen
+        // Fill form with current values
         const form = document.getElementById('customizationForm');
         if (form) {
             form.elements['siteName'].value = data.siteName || '';
@@ -403,7 +403,7 @@ async function loadCustomization(featuresContainer) {
             form.elements['viewOnlyAllowed'].checked = data.viewOnlyAllowed || false;
             form.elements['hideHeader'].checked = data.hideHeader || false;
 
-            // Features aktualisieren
+            // Update features list
             updateFeaturesInputs(data.features || [], featuresContainer);
         } else {
             console.error('Customization form not found!');
@@ -414,9 +414,9 @@ async function loadCustomization(featuresContainer) {
     }
 }
 
-// Aktualisiere Seiteninhalte ohne Neuladen
+// Update page content without full reload
 function updatePageContent(data) {
-    // Aktualisiere alle Elemente mit data-custom Attribut
+    // Update all elements with data-custom attribute
     document.querySelectorAll('[data-custom]').forEach(el => {
         const key = el.getAttribute('data-custom');
         if (key === 'mainHeadline' || key === 'loginContact') {
@@ -426,12 +426,12 @@ function updatePageContent(data) {
         }
     });
 
-    // Features dynamisch aktualisieren
+    // Update features display
     const featuresDisplay = document.getElementById('featuresDisplay');
     if (featuresDisplay && Array.isArray(data.features)) {
         featuresDisplay.innerHTML = '';
         
-        // Feature Icons
+        // Feature icons
         const icons = {
             default: `<path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>`,
             image: `<path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>`,
@@ -439,7 +439,7 @@ function updatePageContent(data) {
             security: `<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>`
         };
 
-        // Feature Icon Mapping basierend auf Schlüsselwörtern
+        // Feature icon mapping based on keywords
         function getIconForFeature(feature) {
             const lowerFeature = feature.toLowerCase();
             if (lowerFeature.includes('bild')) return icons.image;
@@ -461,7 +461,7 @@ function updatePageContent(data) {
         });
     }
 
-    // View-Only Feature aktualisieren
+    // Update view-only feature
     if (!data.viewOnlyAllowed) {
         const viewOnlyBtn = document.getElementById('viewOnlyBtn');
         const viewOnlyInfo = document.getElementById('viewOnlyInfo');
@@ -479,6 +479,6 @@ function updatePageContent(data) {
         if (mobileViewOnlyInfo) mobileViewOnlyInfo.style.display = '';
     }
 
-    // Header-Bereich verstecken/anzeigen
+    // Toggle header visibility
     updateHeaderVisibility(data.hideHeader || false, false);
 } 

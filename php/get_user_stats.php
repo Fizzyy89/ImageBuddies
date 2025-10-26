@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Prüfe ob User eingeloggt ist
+// Check if user is logged in
 if (!isset($_SESSION['user'])) {
     http_response_code(401);
     echo json_encode(['error_key' => 'error.notLoggedIn']);

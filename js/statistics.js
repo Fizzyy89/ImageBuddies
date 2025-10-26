@@ -1,8 +1,8 @@
 import { translate } from './i18n.js';
-// Chart.js wird als globales Objekt geladen
+// Chart.js is loaded as a global
 const Chart = window.Chart;
 
-// Registriere benötigte Chart.js Komponenten
+// Register required Chart.js components
 Chart.register(
     Chart.DoughnutController,
     Chart.PieController,
@@ -18,7 +18,7 @@ Chart.register(
     Chart.Tooltip
 );
 
-// Farben für Charts
+// Chart colors
 const chartColors = {
     blue: ['#3b82f6', '#60a5fa', '#93c5fd'],
     green: ['#22c55e', '#4ade80', '#86efac'],
@@ -41,7 +41,7 @@ let charts = {
     costsPerUser: null
 };
 
-// Chart.js Defaults für dunkles Theme
+// Chart.js defaults for dark theme
 function updateChartDefaults() {
     const darkMode = document.documentElement.classList.contains('dark');
     Chart.defaults.color = darkMode ? '#94a3b8' : '#475569';
@@ -49,13 +49,13 @@ function updateChartDefaults() {
 }
 
 export function initStatistics() {
-    // Setze Chart.js Defaults
+    // Set Chart.js defaults
     updateChartDefaults();
 
-    // Aktualisiere Chart Defaults wenn sich der Theme-Modus ändert
+    // Update chart defaults when theme changes
     const observer = new MutationObserver(() => {
         updateChartDefaults();
-        // Aktualisiere existierende Charts wenn vorhanden
+        // Update existing charts if present
         Object.values(charts).forEach(chart => {
             if (chart) {
                 chart.update();
@@ -83,7 +83,7 @@ export function initStatistics() {
             }
         });
 
-    // Event Listener
+    // Event listeners
     [statsButton, mobileStatsButton].forEach(btn => {
         if (btn) {
             btn.addEventListener('click', () => {
@@ -99,14 +99,14 @@ export function initStatistics() {
         });
     }
 
-    // Schließen mit Escape-Taste
+    // Close with escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !statsModal.classList.contains('hidden')) {
             statsModal.classList.add('hidden');
         }
     });
 
-    // Klick außerhalb schließt Modal
+    // Click outside closes modal
     statsModal.addEventListener('click', (e) => {
         if (e.target === statsModal) {
             statsModal.classList.add('hidden');
@@ -124,14 +124,14 @@ async function loadStatistics() {
             return;
         }
 
-        // Update Zahlen-Karten
+        // Update summary cards
         document.getElementById('totalImages').textContent = data.totalImages;
         document.getElementById('totalCosts').textContent = (data.totalCosts / 100).toFixed(2) + translate('statistics.unit.currency');
         document.getElementById('avgImagesPerDay').textContent = 
             Object.values(data.imagesPerDay).reduce((a, b) => Math.max(a, b), 0) + translate('statistics.card.peakPerDaySuffix');
         document.getElementById('avgCostPerImage').textContent = (data.avgCostPerImage / 100).toFixed(2) + translate('statistics.unit.currency');
 
-        // Update Charts
+        // Update charts
         updateQualityChart(data.qualityDistribution);
         updateAspectRatioChart(data.aspectRatioDistribution);
         updateUserChart(data.userDistribution);
@@ -140,7 +140,7 @@ async function loadStatistics() {
         updateImagesPerDayChart(data.imagesPerDay);
         updateCostsPerDayChart(data.costsPerDay);
         
-        // Neue Charts
+        // Additional charts
         updateRefUsageChart(data.referenceImageStats);
         updateAvgRefChart(data.referenceImageStats);
         updateRefCostsChart(data.referenceImageStats);
@@ -194,7 +194,7 @@ function updateAspectRatioChart(data) {
     const ctx = document.getElementById('aspectRatioChart');
     if (charts.aspectRatio) charts.aspectRatio.destroy();
     
-    // Unterstütze Ratio-Strings direkt (z. B. '1:1', '16:9') und alte Dimensionen
+    // Support ratio strings directly (e.g., '1:1', '16:9') and legacy dimensions
     const labels = {
         '1:1': translate('statistics.aspectRatio.squareLabel'),
         '2:3': translate('statistics.aspectRatio.portraitLabel'),
@@ -211,12 +211,47 @@ function updateAspectRatioChart(data) {
         '1536x1024': translate('statistics.aspectRatio.landscapeLabel')
     };
 
+    // Map legacy dimension entries (e.g., '1536x1024') to ratio keys and merge
+    const allowed = {
+        '1:1': 1.0,
+        '2:3': 2/3,
+        '3:2': 3/2,
+        '3:4': 3/4,
+        '4:3': 4/3,
+        '4:5': 4/5,
+        '5:4': 5/4,
+        '9:16': 9/16,
+        '16:9': 16/9,
+        '21:9': 21/9
+    };
+    const toNearestRatio = (w, h) => {
+        const r = w / h;
+        let best = '1:1', bestDiff = Infinity;
+        for (const [k, v] of Object.entries(allowed)) {
+            const d = Math.abs(r - v);
+            if (d < bestDiff) { best = k; bestDiff = d; }
+        }
+        return best;
+    };
+    const normalized = {};
+    Object.entries(data || {}).forEach(([key, count]) => {
+        let norm = key;
+        if (typeof key === 'string' && key.includes('x')) {
+            const parts = key.toLowerCase().split('x');
+            const w = parseFloat(parts[0]);
+            const h = parseFloat(parts[1] || '0');
+            if (w > 0 && h > 0) norm = toNearestRatio(w, h); else norm = '1:1';
+        }
+        if (!normalized[norm]) normalized[norm] = 0;
+        normalized[norm] += count;
+    });
+
     charts.aspectRatio = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: Object.keys(data).map(key => labels[key] || key),
+            labels: Object.keys(normalized).map(key => labels[key] || key),
             datasets: [{
-                data: Object.values(data),
+                data: Object.values(normalized),
                 backgroundColor: chartColors.green,
                 borderWidth: 2
             }]
@@ -277,7 +312,7 @@ function updateImagesPerMonthChart(data) {
     const ctx = document.getElementById('imagesPerMonthChart');
     if (charts.imagesPerMonth) charts.imagesPerMonth.destroy();
 
-    // Formatiere Monatsnamen
+    // Format month names
     const monthNames = {
         '01': translate('month.short.jan'), '02': translate('month.short.feb'), '03': translate('month.short.mar'), '04': translate('month.short.apr'),
         '05': translate('month.short.may'), '06': translate('month.short.jun'), '07': translate('month.short.jul'), '08': translate('month.short.aug'),
@@ -321,7 +356,7 @@ function updateCostsChart(data) {
     const ctx = document.getElementById('costsChart');
     if (charts.costs) charts.costs.destroy();
 
-    // Formatiere Monatsnamen
+    // Format month names
     const monthNames = {
         '01': translate('month.short.jan'), '02': translate('month.short.feb'), '03': translate('month.short.mar'), '04': translate('month.short.apr'),
         '05': translate('month.short.may'), '06': translate('month.short.jun'), '07': translate('month.short.jul'), '08': translate('month.short.aug'),
@@ -435,7 +470,7 @@ function updateCostsPerDayChart(data) {
     });
 }
 
-// Neue Chart-Funktionen
+    // New chart helpers
 function updateRefUsageChart(data) {
     const ctx = document.getElementById('refUsageChart');
     if (charts.refUsage) charts.refUsage.destroy();
@@ -509,7 +544,7 @@ function updateRefCostsChart(data) {
     const ctx = document.getElementById('refCostsChart');
     if (charts.refCosts) charts.refCosts.destroy();
     
-    // Berechne Kosten (3 Cent pro Referenzbild)
+    // Calculate costs (3 cents per reference image)
     const refCosts = data.totalRefs * 3;
     const totalCosts = data.withRefs * 6; // Annahme: Durchschnittlich 6 Cent pro Bild
     

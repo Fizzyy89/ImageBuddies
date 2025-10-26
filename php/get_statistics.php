@@ -2,7 +2,7 @@
 session_start();
 header('Content-Type: application/json');
 
-// Prüfe Admin-Berechtigung
+// Check admin permission
 if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(['error_key' => 'error.statistics.noPermission']);
@@ -12,7 +12,7 @@ if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] 
 require_once __DIR__ . '/db.php';
 
 try {
-// Initialisiere Statistiken
+// Initialize statistics
 $stats = [
     'totalImages' => 0,
     'totalCosts' => 0,
@@ -35,8 +35,8 @@ $stats = [
     ]
 ];
 
-// Gesamtsummen (nur nicht-gelöschte Bilder zählen? Im CSV wurden gelöschte Bilder nicht mehr gezählt; Einträge blieben. Wir zählen nur deleted=0)
-$rows = db_rows('SELECT g.created_at, g.size, g.quality, g.ref_image_count, g.batch_id, g.image_number, g.cost_total_cents, u.username FROM generations g JOIN users u ON u.id=g.user_id');
+// Totals (in CSV, deleted images were omitted; DB may retain rows — we count all rows here)
+$rows = db_rows('SELECT g.created_at, g.aspect_class, g.quality, g.ref_image_count, g.batch_id, g.image_number, g.cost_total_cents, u.username FROM generations g JOIN users u ON u.id=g.user_id');
 
 $firstDate = null;
 $lastDate = null;
@@ -55,40 +55,8 @@ foreach ($rows as $r) {
         // Skip invalid date rows
         continue;
     }
-    $size = $r['size'];
-    // Normalisiere Size auf Ratio-Strings (z.B. 1024x1536 -> 2:3)
-    if (is_string($size)) {
-        if (strpos($size, 'x') !== false) {
-            $parts = explode('x', strtolower($size));
-            $w = floatval($parts[0]);
-            $h = floatval($parts[1] ?? 0);
-            if ($w > 0 && $h > 0) {
-                $ratio = $w / $h;
-                // Mappe auf erlaubte Ratios
-                $allowed = [
-                    '1:1' => 1.0,
-                    '2:3' => 2/3,
-                    '3:2' => 3/2,
-                    '3:4' => 3/4,
-                    '4:3' => 4/3,
-                    '4:5' => 4/5,
-                    '5:4' => 5/4,
-                    '9:16' => 9/16,
-                    '16:9' => 16/9,
-                    '21:9' => 21/9
-                ];
-                $best = '1:1';
-                $bestDiff = PHP_FLOAT_MAX;
-                foreach ($allowed as $k => $v) {
-                    $d = abs($ratio - $v);
-                    if ($d < $bestDiff) { $bestDiff = $d; $best = $k; }
-                }
-                $size = $best;
-            }
-        } elseif (strpos($size, ':') !== false) {
-            // Bereits Ratio-String
-        }
-    }
+    // aspect_class is already a normalized ratio string (e.g., "1:1", "3:2")
+    $size = $r['aspect_class'];
     $quality = $r['quality'];
     $refCount = intval($r['ref_image_count']);
     $user = $r['username'];

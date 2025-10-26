@@ -38,7 +38,7 @@
     cursor: default;
 }
 
-/* Navigation und Close-Button */
+/* Navigation and close buttons */
 .lightbox #lightboxCloseBtn,
 .lightbox #lightboxPrev,
 .lightbox #lightboxNext {
@@ -115,7 +115,7 @@ html.transitioning * {
 
 html, body {
     -webkit-font-smoothing: antialiased; /* Chrome, Safari, Opera */
-    -moz-osx-font-smoothing: grayscale;  /* Firefox auf Mac */
+    -moz-osx-font-smoothing: grayscale;  /* Firefox on macOS */
     text-rendering: optimizeLegibility;
     font-family: 'Inter', system-ui, Arial, sans-serif;
 }
@@ -138,19 +138,19 @@ html, body {
 }
 
 @media (max-width: 640px) {
-  /* Rechte Infobox in der Lightbox auf Mobile scrollbar machen */
+  /* Make the right info panel in the lightbox scrollable on mobile */
   .lightbox .md\:w-\[400px\].w-full.flex.flex-col.border-t.md\:border-l.border-gray-200 {
     max-height: 60vh;
     overflow-y: auto;
   }
-  /* Alternativ, falls die Klasse sich ändert, gezielt das 2. Kind im flex-Layout ansprechen: */
+  /* Alternatively, if the class changes, target the 2nd child in the flex layout */
   .lightbox #lightboxInner > div:last-child {
     max-height: 60vh;
     overflow-y: auto;
   }
 }
 
-/* Fix: Richtiger Cursor für Prompt und Batch-Thumbnails in der Lightbox */
+/* Fix: correct cursor for prompt and batch thumbnails in the lightbox */
 .lightbox #lightboxPrompt {
     cursor: text;
     user-select: text;

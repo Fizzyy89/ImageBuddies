@@ -16,12 +16,12 @@ if (!$data || !isset($data['imageBase64'], $data['prompt'], $data['timestamp']))
     exit;
 }
 
-// Mode: 'openai' oder 'gemini'
+// Mode: 'openai' or 'gemini'
 $mode = $data['mode'] ?? 'openai';
 $size = $data['size'] ?? '1024x1024';
 $quality = $data['quality'] ?? 'medium';
 
-// Für Gemini eine eigene Qualitäts-Kennzeichnung verwenden
+// Use a dedicated quality label for Gemini
 if ($mode === 'gemini') {
     $quality = 'gemini';
 }
@@ -34,55 +34,55 @@ if (!is_dir($imageDir)) mkdir($imageDir, 0777, true);
 $fullImagePath = $imageDir . '/' . $filename;
 file_put_contents($fullImagePath, $image_data);
 
-// --- THUMBNAIL-GENERIERUNG ---
+// --- THUMBNAIL GENERATION ---
 $thumbDir = $imageDir . '/thumbs';
 if (!is_dir($thumbDir)) mkdir($thumbDir, 0777, true);
 
 $srcPath = $fullImagePath;
 $thumbPath = $thumbDir . '/' . $filename;
 
-// Bild laden um echte Dimensionen zu ermitteln (robust für verschiedene Formate)
+// Load image to determine true dimensions (robust across formats)
 $srcContent = @file_get_contents($srcPath);
 $srcImg = $srcContent ? @imagecreatefromstring($srcContent) : false;
 if (!$srcImg) {
-    // Fallback wenn Bild nicht geladen werden kann
+    // Fallback if image cannot be loaded
     $thumbW = 400;
     $thumbH = 400;
 } else {
     $srcW = imagesx($srcImg);
     $srcH = imagesy($srcImg);
     
-    // Zielgrößen bestimmen
+    // Determine target sizes
     if ($mode === 'gemini') {
-        // Für Gemini immer dynamisch basierend auf echten Dimensionen
+        // For Gemini, always dynamic based on actual dimensions
         $aspectRatio = $srcW / $srcH;
         $maxDimension = 600; // maximale Kante
         if ($aspectRatio > 1) {
-            // Querformat
+            // Landscape
             $thumbW = $maxDimension;
             $thumbH = (int)($thumbW / $aspectRatio);
         } else {
-            // Hochformat oder Quadrat
+            // Portrait or square
             $thumbH = $maxDimension;
             $thumbW = (int)($thumbH * $aspectRatio);
         }
     } else {
-        // OpenAI-Modus: auf gewählte Size abbilden
+        // OpenAI mode: map to selected size
         switch ($size) {
             case '1024x1024': // 1:1
                 $thumbW = 400;
                 $thumbH = 400;
                 break;
-            case '1024x1536': // 2:3 Hochformat
+            case '1024x1536': // 2:3 portrait
                 $thumbW = 400;
                 $thumbH = 600;
                 break;
-            case '1536x1024': // 3:2 Querformat
+            case '1536x1024': // 3:2 landscape
                 $thumbW = 600;
                 $thumbH = 400;
                 break;
             default:
-                // Fallback dynamisch
+                // Dynamic fallback
                 $aspectRatio = $srcW / $srcH;
                 $maxDimension = 600;
                 if ($aspectRatio > 1) {
@@ -96,7 +96,7 @@ if (!$srcImg) {
         }
     }
     
-    // Erstelle Thumbnail mit berechneten Dimensionen
+    // Create thumbnail with computed dimensions
     $thumbImg = imagecreatetruecolor($thumbW, $thumbH);
     imagealphablending($thumbImg, false);
     imagesavealpha($thumbImg, true);
@@ -106,22 +106,22 @@ if (!$srcImg) {
     imagedestroy($thumbImg);
 }
 
-// Benutzername für DB
+// Username for DB
 $user = $_SESSION['user'] ?? '';
 
 // Escape semicolons in prompt to prevent CSV injection
 $sanitized_prompt = str_replace(["\r", "\n", ";"], [' ', ' ', ','], $data['prompt']);
 
-// Prüfe ob ref_image_count im Request vorhanden ist
+// Check if ref_image_count is present in the request
 $ref_image_count = isset($data['ref_image_count']) ? intval($data['ref_image_count']) : 0;
 
-// Neue Felder für Multi-Generierung
+// New fields for multi-generation
 $batchId = isset($data['batchId']) ? $data['batchId'] : '';
 $imageNumber = isset($data['imageNumber']) ? intval($data['imageNumber']) : 1;
 
-// --- REFERENZBILDER SPEICHERN (einmal pro Batch, bei imageNumber === 1) ---
-// Erwartetes Format: $data['refImages'] = [
-//   "iVBORw0KGgo..." ODER "data:image/png;base64,iVBORw0KGgo..."
+// --- SAVE REFERENCE IMAGES (once per batch when imageNumber === 1) ---
+// Expected format: $data['refImages'] = [
+//   "iVBORw0KGgo..." OR "data:image/png;base64,iVBORw0KGgo..."
 // ]
 if (!empty($batchId) && $imageNumber === 1 && isset($data['refImages']) && is_array($data['refImages']) && count($data['refImages']) > 0) {
     $safeBatchId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
@@ -149,11 +149,11 @@ if (!empty($batchId) && $imageNumber === 1 && isset($data['refImages']) && is_ar
     }
 }
 
-// Erkenne tatsächliches Seitenverhältnis und mappe auf bekannte Ratio-Strings
+// Detect actual aspect ratio and map to known ratio strings
 $imgSize = @getimagesize($fullImagePath);
 $aspect_class = $size; // Fallback: übergebener Wert (kann Dimension oder Ratio sein)
 
-// Erlaubte Ratio-Zielwerte (als numerische Verhältnisse)
+// Allowed ratio targets (numeric)
 $allowedRatios = [
     '1:1'   => 1.0,
     '2:3'   => 2/3,
@@ -186,7 +186,7 @@ if ($imgSize && isset($imgSize[0], $imgSize[1]) && $imgSize[0] > 0 && $imgSize[1
     $r = $w / $h;
     $aspect_class = $pickNearestRatio($r);
 } else {
-    // Fallback: versuche aus $size zu lesen
+    // Fallback: try to derive from $size
     if (is_string($size) && strpos($size, 'x') !== false) {
         // Format WxH
         $parts = explode('x', strtolower($size));
@@ -198,7 +198,7 @@ if ($imgSize && isset($imgSize[0], $imgSize[1]) && $imgSize[0] > 0 && $imgSize[1
             $aspect_class = '1:1';
         }
     } elseif (is_string($size) && strpos($size, ':') !== false) {
-        // Bereits Ratio a:b
+        // Already a ratio a:b
         $aspect_class = $size;
     } else {
         $aspect_class = '1:1';
@@ -207,13 +207,13 @@ if ($imgSize && isset($imgSize[0], $imgSize[1]) && $imgSize[0] > 0 && $imgSize[1
 
 
 
-// Persistiere in SQLite
+// Persist to SQLite
 require_once __DIR__ . '/db.php';
 
-// Hole/erzeuge user_id
+// Get/create user_id
 $u = db_row('SELECT id FROM users WHERE username = ?', [$user]);
 if ($u === null) {
-    // Sicherheitsnetz: lege Benutzer an (sollte durch Setup existieren)
+    // Safety net: create user (should exist from setup)
     db_exec('INSERT INTO users (username, password_hash, role) VALUES (?,?,?)', [
         $user,
         password_hash(bin2hex(random_bytes(8)), PASSWORD_DEFAULT),
@@ -223,7 +223,7 @@ if ($u === null) {
 }
 $user_id = intval($u['id']);
 
-// Kosten berechnen
+// Calculate costs
 $imageCost = 0;
 $refCost = 0;
 if ($mode === 'gemini') {
@@ -240,10 +240,10 @@ try {
     $batchParam = ($batchId !== '') ? $batchId : null; // avoid UNIQUE(NULL, n) conflicts across batches
     db_exec(
         'INSERT INTO generations (
-            created_at, mode, batch_id, image_number, user_id, filename, prompt, size, quality, private,
+            created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
             ref_image_count, width, height, aspect_class, deleted,
             cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [
             $timestamp,
             $mode,
@@ -252,7 +252,6 @@ try {
             $user_id,
             $filename,
             $sanitized_prompt,
-            $aspect_class,
             $quality,
             0,
             $ref_image_count,

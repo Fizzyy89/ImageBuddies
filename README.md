@@ -72,27 +72,28 @@ The core idea is to provide a shared, self-managed platform for creative image g
 ## 🔧 Technical Overview
 
 * **Frontend**: HTML, CSS (Tailwind CSS), Vanilla JavaScript (modular).
-* **Backend**: PHP with PDO/SQLite (for API proxy, user auth, file management, and database access).
+* **Backend**: PHP with PDO/SQLite (API proxy, user auth, file management, database access).
+* **Layout**:
+    * `www/` (Document Root): public assets and `www/api/*` endpoints
+    * `src/`: non-public application code (bootstrap, DB helpers, crypto)
+    * `data/`: created at first setup (non-public), stores `app.sqlite3` and `.secret.key`
+    * `www/images/`: image files and thumbnails (public)
 * **Storage**:
-    * Images are stored on the server (`/images`).
-    * A single SQLite database file (`/database/app.sqlite3`) stores:
+    * SQLite at `data/app.sqlite3` with tables:
         * `users` (accounts and roles)
-        * `settings` (includes customization JSON, encrypted API keys, feature flags like `gemini_available`)
+        * `settings` (customization JSON, encrypted API keys, feature flags like `gemini_available`)
         * `generations` (all image metadata, costs, batch info, and a `deleted` flag)
     * API keys (OpenAI, Gemini) are encrypted at rest and managed via the admin UI.
 
 ## ⚠️ Security Notice
 
-ImageBuddies is primarily designed for use in **controlled environments**, such as internal networks, personal servers, or among trusted groups. The default setup, with the `/database` directory located within the web root, prioritizes ease of installation.
+ImageBuddies is primarily designed for **controlled environments** (internal networks, personal servers, trusted groups). Since v1.1.0 the default layout keeps sensitive data **outside the webroot**:
 
-If you choose to deploy ImageBuddies on a **publicly accessible web server**, please be aware of the following:
+* `data/` is non-public and created during setup (contains the SQLite DB `app.sqlite3` and the encryption key `.secret.key`).
+* `src/` is non-public and contains application code.
+* `www/` is the only public folder (static files and `www/api/*`).
 
-* **Sensitive Data:** The `/database` directory contains sensitive data, most notably the SQLite database file (`app.sqlite3`) and the encryption key file (`.secret.key`).
-* **Apache Web Server Protection:** An `.htaccess` file is included within the `/database` directory. This file is intended to block direct web access to the directory's contents **when using an Apache web server**. Ensure your Apache server is configured to allow `.htaccess` files (e.g., `AllowOverride All`).
-* **Other Web Servers (Nginx, IIS, etc.):** The included `.htaccess` file **will not provide protection** on web servers other than Apache. If you are using Nginx, IIS, or another server type, you **must manually configure your server** to prevent direct web access to the `/database` directory. Consult your web server's documentation for instructions (e.g., search "deny access to folder nginx" or "request filtering iis").
-* **Your Responsibility:** Ultimately, securing the `/database` directory and your server configuration is **your responsibility**, especially in a public-facing environment. Failure to do so can expose sensitive information.
-
-Future versions may include more robust out-of-the-box security for public deployments.
+Make sure your web server’s DocumentRoot points to `www/`. If your hosting forces a different public webroot, deploy only the contents of `www/` there and keep `data/` next to it (not under it). For Apache/Nginx/IIS, ensure requests cannot reach `data/` and `src/` — when following the recommended layout they are already outside the webroot.
 
 ## 🔧 Getting Started
 
@@ -115,7 +116,7 @@ Future versions may include more robust out-of-the-box security for public deplo
 
 1.  **Download**: Download the new release from this page
 2.  **Replace**: Replace all files on your webspace
-3.  **Careful**: Your data is stored inside the /database-Folder. Don't delete or overwrite.
+3.  **Careful**: Your data lives in `data/` (DB and key) and in `www/images/`. Do not delete or overwrite these folders.
 
 ## 📋 Requirements
 
@@ -125,7 +126,7 @@ Future versions may include more robust out-of-the-box security for public deplo
 * `zip` extension for PHP (for downloading image batches).
 * `pdo_sqlite` extension for PHP (for SQLite database access).
 * One of: `sodium` (libsodium) or `openssl` extensions for PHP (for encrypting API keys at rest).
-* Write permissions for the `database` and `images` directories.
+* Write permissions for the `data` and `www/images` directories.
 * An OpenAI API key with access to the latest image generation models. You need to verify your organization within the OpenAI dashboard to get this access. This is easy and fast.
 
 ## ☕ Support

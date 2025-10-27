@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-10-28
+
+### Changed
+- **Security & Architecture**
+  - Introduced secure webroot separation and standardized project layout:
+    - `www/` is now the document root (public files only)
+    - `src/` contains reusable backend code (not public)
+    - `data/` (created at first setup) holds the SQLite DB and secret key (not public)
+    - Images remain in `www/images/` (public thumbnails/full images)
+  - All PHP endpoints moved to `www/api/` and now include a central `src/bootstrap.php` with path constants (`IMB_PUBLIC_DIR`, `IMB_DATA_DIR`, `IMB_IMAGE_DIR`, `IMB_LOCALES_DIR`, ...)
+  - Frontend switched from `fetch('php/...')` to `fetch('api/...')`
+  - README Security Notice updated to reflect non-public data directory by default
+
+- **UI/Design Improvements**
+  - Added drop shadows to all modal containers (Statistics, Customization, User Management, My Images) for better visual depth
+  - Restructured My Images modal with sidebar navigation for better organization and future extensibility
+  - Reorganized Customization modal with separate API Keys container in left column for clearer thematic grouping
+  - Enhanced hover effects and transitions across interactive elements
+
+### Breaking
+- Set your web server's DocumentRoot to `www/`. Alternatively, deploy only the contents of `www/` into your public webroot and keep `data/` alongside it (outside the webroot).
+- Removed `php/migrate.php`. If you need to migrate old instances, that do not run on SQLite yet, download it from release `1.0.0` and run the migration file after completing initial setup.
+
 ## [1.0.0] - 2025-10-26
 
 ### Added

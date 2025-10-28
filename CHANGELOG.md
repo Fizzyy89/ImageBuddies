@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - README Security Notice updated to reflect non-public data directory by default
 
 - **UI/Design Improvements**
+  - Made the lightbox use more of the available space
   - Added drop shadows to all modal containers (Statistics, Customization, User Management, My Images) for better visual depth
   - Restructured My Images modal with sidebar navigation for better organization and future extensibility
   - Reorganized Customization modal with separate API Keys container in left column for clearer thematic grouping

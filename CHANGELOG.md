@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0]
+
+### Added
+- **Archive Feature for Image Generations**
+  - New "Archive" tab in the My Images modal for organizing generations
+  - Archived images are hidden from the main gallery but remain accessible in the Archive tab
+  - Archive gallery functions like the main gallery with batch indicators and thumbnails
+  - Lightbox integration: Archive/unarchive actions available via dropdown menu alongside delete option
+  - Archive dropdown in lightbox dynamically shows "Archive" or "Unarchive" based on current status
+  - Administrators can view all archived images from all users in the Archive tab
+  - Foreign archived images display with colored borders and username labels (admin view)
+  - Private badges are shown in the archive gallery for own private images
+  - Archive actions trigger automatic background refresh of the My Images modal
+  - Database: New `archived` column with lazy migration for existing installations
+  - Full internationalization support for all archive-related UI elements
+
+- **Improved My Images Action Bar**
+  - Added selection counter showing number of selected generations
+  - Reorganized action buttons with clearer labels and logical ordering:
+    1. ZIP Download
+    2. Set Private
+    3. Set Public
+    4. Archive
+    5. Delete
+  - Added "Action:" label prefix for better visual structure
+  - Enhanced button labels for improved clarity and user experience
+
 ## [1.1.0] - 2025-10-28
 
 ### Changed

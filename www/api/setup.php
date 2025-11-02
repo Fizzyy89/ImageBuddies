@@ -100,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     height INTEGER,
                     aspect_class TEXT,
                     deleted INTEGER NOT NULL DEFAULT 0,
+                    archived INTEGER NOT NULL DEFAULT 0,
                     cost_image_cents INTEGER NOT NULL DEFAULT 0,
                     cost_ref_cents INTEGER NOT NULL DEFAULT 0,
                     cost_total_cents INTEGER NOT NULL DEFAULT 0,
@@ -113,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_visible ON generations (deleted, private, created_at DESC)');
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_user ON generations (user_id, created_at DESC)');
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_batch ON generations (batch_id)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_archived ON generations (archived, created_at DESC)');
         });
 
     // Load the selected locale file for default customization texts

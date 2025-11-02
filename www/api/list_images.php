@@ -7,6 +7,19 @@ $isAdmin = $isLoggedIn && isset($_SESSION['role']) && $_SESSION['role'] === 'adm
 require_once dirname(__DIR__) . '/../src/bootstrap.php';
 require_once IMB_SRC_DIR . '/db.php';
 
+// Ensure archived column exists (lazy migration)
+try {
+    $cols = db_rows("PRAGMA table_info(generations)");
+    $hasArchived = false;
+    foreach ($cols as $c) { if (isset($c['name']) && $c['name'] === 'archived') { $hasArchived = true; break; } }
+    if (!$hasArchived) {
+        db_exec('ALTER TABLE generations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+        @db_exec('CREATE INDEX IF NOT EXISTS idx_generations_archived ON generations (archived, created_at DESC)');
+    }
+} catch (Throwable $e) {
+    // ignore
+}
+
 function sanitize_batch_id($batchId) {
     return preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
 }
@@ -43,7 +56,7 @@ if (!$isLoggedIn && (!isset($_SERVER['HTTP_X_VIEW_ONLY']) || !$viewOnlyAllowed))
 
 // Query visible images
 $params = [];
-$where = 'g.deleted = 0';
+$where = 'g.deleted = 0 AND g.archived = 0';
 if (!$isAdmin) {
     // Private images visible to owner only
     if ($isLoggedIn) {

@@ -157,12 +157,22 @@ export function initUserProfile() {
             }
         });
     }
+
+    // Refresh My Images content when Lightbox-triggered changes happen
+    window.addEventListener('refreshMyImages', async () => {
+        try {
+            if (myImagesModal && !myImagesModal.classList.contains('hidden')) {
+                await openMyImagesModal();
+            }
+        } catch (_) {}
+    });
 } 
 
 async function openMyImagesModal() {
     const myImagesModal = document.getElementById('myImagesModal');
     const myGenerationsList = document.getElementById('myGenerationsList');
     const myRefsGrid = document.getElementById('myRefsGrid');
+    const myArchivedGrid = document.getElementById('myArchivedGrid');
     if (!myImagesModal || !myGenerationsList || !myRefsGrid) return;
 
     // Initialize tab switching
@@ -200,14 +210,29 @@ async function openMyImagesModal() {
         const allNow = boxes.every(x => x.checked);
         selectAll.indeterminate = anyChecked && !allNow;
         selectAll.checked = allNow;
+        
+        // Update selection count display
+        const countEl = document.getElementById('myGenSelectionCount');
+        const countNumberEl = document.getElementById('myGenSelectionCountNumber');
+        if (countEl && countNumberEl) {
+            const checkedCount = boxes.filter(x => x.checked).length;
+            if (checkedCount > 0) {
+                countNumberEl.textContent = checkedCount;
+                countEl.classList.remove('hidden');
+            } else {
+                countEl.classList.add('hidden');
+            }
+        }
     };
 
     // Load all images (like gallery), then filter for current user
     let currentUser = '';
+    let isAdminFlag = false;
     try {
         const userRes = await fetch('api/session_auth.php?action=status');
         const userData = await userRes.json();
         currentUser = userData.user || '';
+        isAdminFlag = userData.role === 'admin';
     } catch {}
 
     const headers = {};
@@ -348,8 +373,6 @@ async function openMyImagesModal() {
         thumb.title = translate('myImages.thumbnailTooltip');
         thumb.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Show lightbox in foreground: close modal, then fire event
-            try { myImagesModal.classList.add('hidden'); } catch (_) {}
             try {
                 window.dispatchEvent(new CustomEvent('showBatchImage', { detail: { image: first } }));
             } catch (_) {}
@@ -488,7 +511,137 @@ async function openMyImagesModal() {
         } catch (e) {}
     };
 
+    // Bulk Archive
+    const archBtn = document.getElementById('myGenArchive');
+    if (archBtn) archBtn.onclick = async () => {
+        const sel = getSelections();
+        for (const s of sel) {
+            if (s.batchId) {
+                await fetch('api/set_archived.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batchId: s.batchId, archived: 1 }) });
+            } else if (s.filename) {
+                await fetch('api/set_archived.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: s.filename, archived: 1 }) });
+            }
+        }
+        await openMyImagesModal();
+    };
+
+    // Bulk Unarchive
+    const unarchBtn = document.getElementById('myGenUnarchive');
+    if (unarchBtn) unarchBtn.onclick = async () => {
+        const sel = getSelections();
+        for (const s of sel) {
+            if (s.batchId) {
+                await fetch('api/set_archived.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batchId: s.batchId, archived: 0 }) });
+            } else if (s.filename) {
+                await fetch('api/set_archived.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: s.filename, archived: 0 }) });
+            }
+        }
+        await openMyImagesModal();
+    };
+
     myImagesModal.classList.remove('hidden');
+
+    // Render Archived Grid (like main gallery: batches collapsed with "+" indicator)
+    if (myArchivedGrid) {
+        try {
+            const resp = await fetch('api/list_archived.php');
+            if (!resp.ok) throw new Error('failed');
+            const archived = await resp.json();
+            myArchivedGrid.innerHTML = '';
+
+            // Sort newest first (same as gallery)
+            archived.sort((a, b) => {
+                const dateA = a.timestamp ? new Date(a.timestamp.replace(/-/g, ':').replace('T', ' ')) : new Date(0);
+                const dateB = b.timestamp ? new Date(b.timestamp.replace(/-/g, ':').replace('T', ' ')) : new Date(0);
+                return dateB - dateA;
+            });
+
+            // Display only batch main images (imageNumber === '1') and singletons
+            const displayed = archived.filter(obj => {
+                if (obj.batchId && obj.batchId !== '' && String(obj.imageNumber) !== '1') return false;
+                return true;
+            });
+
+            displayed.forEach((fileObj) => {
+                const { file, user, private: isPrivate } = fileObj;
+                const card = document.createElement('div');
+                const isOtherUser = isAdminFlag && user && user !== currentUser;
+                let cardClasses = 'image-card relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl';
+                if (isOtherUser) {
+                    cardClasses += ' ring-4 ring-indigo-500/80 dark:ring-indigo-400/80 hover:ring-indigo-500 dark:hover:ring-indigo-400';
+                }
+                card.className = cardClasses;
+
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'aspect-square w-full relative overflow-hidden bg-gray-50 dark:bg-slate-800 rounded-2xl';
+                const thumbFile = file.split('/').pop();
+                const thumbUrl = 'images/thumbs/' + thumbFile;
+                const img = document.createElement('img');
+                img.src = thumbUrl;
+                img.alt = 'Archived Image';
+                img.className = 'w-full h-full object-cover rounded-2xl';
+
+                // Batch size indicator
+                if (fileObj.batchId && String(fileObj.imageNumber) === '1') {
+                    const batchSize = archived.filter(f => f.batchId === fileObj.batchId).length;
+                    if (batchSize > 1) {
+                        const batchIndicator = document.createElement('div');
+                        batchIndicator.className = 'absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1.5';
+                        batchIndicator.innerHTML = `
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
+                            </svg>
+                            +${batchSize - 1}
+                        `;
+                        imgContainer.appendChild(batchIndicator);
+                    }
+                }
+
+                if (isOtherUser) {
+                    const label = document.createElement('div');
+                    label.className = 'absolute top-2 right-2 z-10 flex items-center gap-1 bg-indigo-500/90 text-white text-xs px-2 py-1 rounded-full shadow-lg';
+                    label.innerHTML = `
+                        <svg class="w-4 h-4 mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        ${user}
+                    `;
+                    card.appendChild(label);
+                } else if (user && user === currentUser && isPrivate === '1') {
+                    // Own private indicator (same style as gallery)
+                    const label = document.createElement('div');
+                    label.className = 'absolute top-2 right-2 z-10 flex items-center gap-1 bg-gray-900/80 text-white text-xs px-2 py-1 rounded-full';
+                    label.innerHTML = `
+                        <svg class="w-4 h-4 mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-10.5-7.5a10.05 10.05 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                        ${translate('label.private')}
+                    `;
+                    card.appendChild(label);
+                }
+
+                card.addEventListener('click', () => {
+                    try {
+                        // Build batch images list for this batch (if any), sorted by imageNumber
+                        let batchImages = [];
+                        if (fileObj.batchId) {
+                            batchImages = archived
+                                .filter(f => f.batchId === fileObj.batchId)
+                                .sort((a, b) => parseInt(a.imageNumber) - parseInt(b.imageNumber));
+                        }
+                        // Open lightbox above, keep modal visible underneath
+                        window.dispatchEvent(new CustomEvent('showBatchImage', { detail: { image: { ...fileObj, archived: '1', batchImages } } }));
+                    } catch (_) {}
+                });
+
+                imgContainer.appendChild(img);
+                card.appendChild(imgContainer);
+                myArchivedGrid.appendChild(card);
+            });
+        } catch (_) {
+            myArchivedGrid.innerHTML = '<div class="col-span-full text-red-400 text-center" data-translate="myImages.archive.loadError">Error loading archive.</div>';
+        }
+    }
 }
 
 // Tab switching for My Images Modal

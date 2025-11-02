@@ -68,7 +68,11 @@ export function initLightbox({
             lightboxPrompt.parentNode.querySelectorAll('.lightbox-batch-separator').forEach(el => el.remove());
         }
         if (!imgObj.batchId) return;
-        const batchImages = allImages.filter(img => img.batchId === imgObj.batchId);
+        let batchImages = allImages.filter(img => img.batchId === imgObj.batchId);
+        // Fallback: when opened from archive (not in galleryImages/allImages), use provided batchImages
+        if ((!batchImages || batchImages.length <= 1) && tempDirectImage && Array.isArray(tempDirectImage.batchImages)) {
+            batchImages = tempDirectImage.batchImages;
+        }
         // Insert after the label container (quality/aspect ratio/reference images)
         let labelContainer = null;
         if (lightboxPrompt && lightboxPrompt.parentNode) {
@@ -108,7 +112,11 @@ export function initLightbox({
                     if (galleryIdx !== -1) {
                         openGalleryLightbox(galleryIdx);
                     } else {
-                        showBatchImageDirect(img);
+                        // Preserve the batch image list AND archived status when navigating within an archived batch
+                        const nextImg = (tempDirectImage && Array.isArray(tempDirectImage.batchImages))
+                            ? { ...img, batchImages: tempDirectImage.batchImages, archived: tempDirectImage.archived || imgObj.archived }
+                            : { ...img, archived: imgObj.archived };
+                        showBatchImageDirect(nextImg);
                     }
                 };
                 thumbBarRow.appendChild(thumb);
@@ -190,11 +198,32 @@ export function initLightbox({
                     if (newMain !== -1) {
                         openGalleryLightbox(newMain);
                     } else {
+                        // Fallback for archived batches: refetch archived list for this batch
+                        if (imgObj.batchId) {
+                            try {
+                                const archResp = await fetch('api/list_archived.php');
+                                const arch = await archResp.json();
+                                const updatedBatch = arch.filter(a => a.batchId === imgObj.batchId).sort((a,b)=>parseInt(a.imageNumber)-parseInt(b.imageNumber));
+                                const newMainObj = updatedBatch.find(x => String(x.imageNumber) === '1') || updatedBatch[0];
+                                if (newMainObj) {
+                                    showBatchImageDirect({ ...newMainObj, batchImages: updatedBatch });
+                                }
+                            } catch (_) {
+                                // fallback: close
                         lightbox.classList.add('hidden');
                         lightbox.classList.remove('active');
                         lightboxImage.src = '#';
                         setCurrentGalleryIndex(-1);
                     }
+                        } else {
+                            lightbox.classList.add('hidden');
+                            lightbox.classList.remove('active');
+                            lightboxImage.src = '#';
+                            setCurrentGalleryIndex(-1);
+                        }
+                    }
+                    // Notify My Images to refresh
+                    try { window.dispatchEvent(new CustomEvent('refreshMyImages')); } catch (_) {}
                 } catch (err) {
                     alert(translate('lightbox.error.swapMainImageFailed'));
                 } finally {
@@ -349,6 +378,8 @@ export function initLightbox({
         renderBatchThumbnails(imgObj);
         // Always show navigation (prev/next)
         updateLightboxNav();
+        // Update archive toggle label based on current image status
+        updateArchiveToggleLabel();
     }
     function updateLightboxNav() {
         // If a direct image is shown, navigation is based on galleryImages
@@ -716,26 +747,109 @@ export function initLightbox({
 
     // (The Gemini button is managed dynamically in ensureGeminiEditButton())
     if (deleteImageBtn) {
-        deleteImageBtn.addEventListener('click', async (e) => {
+        // Build dropdown for delete/archive actions
+        const actionsDropdown = document.createElement('div');
+        actionsDropdown.id = 'deleteActionsDropdown';
+        actionsDropdown.className = 'hidden absolute top-full right-0 mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 py-2 z-50 min-w-[220px]';
+        actionsDropdown.innerHTML = `
+            <button id=\"lbArchiveToggleBtn\" class=\"w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2\">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V7a2 2 0 00-2-2h-3.586a1 1 0 01-.707-.293l-1.414-1.414A1 1 0 0011.586 3H8a2 2 0 00-2 2v6"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 11v10a2 2 0 002 2h4a2 2 0 002-2V11M8 7h8"/>
+                </svg>
+                <span id=\"lbArchiveToggleLabel\"></span>
+            </button>
+            <div class="my-1 border-t border-gray-200 dark:border-slate-700"></div>
+            <button id="lbDeleteBtn" class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m2 0h-2m-6 0H7m2-2a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <span data-translate="lightbox.actions.delete">Löschen</span>
+            </button>
+        `;
+        // Positioning container
+        const container = deleteImageBtn.parentElement;
+        if (container) {
+            container.style.position = 'relative';
+            container.appendChild(actionsDropdown);
+        }
+
+        // Initialize label
+        try {
+            const label = actionsDropdown.querySelector('#lbArchiveToggleLabel');
+            if (label) label.textContent = translate('lightbox.actions.archive');
+        } catch (_) {}
+
+        // Toggle dropdown on button click
+        deleteImageBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const currentImage = galleryImages[currentGalleryIndex];
+            // Update archive/unarchive label dynamically using helper function
+            updateArchiveToggleLabel();
+            actionsDropdown.classList.toggle('hidden');
+        });
+        // Close on outside click
+        document.addEventListener('click', () => actionsDropdown.classList.add('hidden'));
+
+        // Archive/Unarchive handler
+        document.getElementById('lbArchiveToggleBtn').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            actionsDropdown.classList.add('hidden');
+            const currentImage = (function(){
+                if (currentGalleryIndex >= 0 && galleryImages[currentGalleryIndex]) return galleryImages[currentGalleryIndex];
+                // When showing direct image (from archive tab)
+                if (typeof getCurrentLightboxImage === 'function') return getCurrentLightboxImage();
+                return null;
+            })();
+            if (!currentImage) return;
+            const isArchived = currentImage.archived === '1';
+            // Batch if present, else single
+            const isBatch = !!currentImage.batchId && allImages.filter(img => img.batchId === currentImage.batchId).length > 1;
+            try {
+                const body = isBatch
+                    ? { batchId: currentImage.batchId, archived: isArchived ? 0 : 1 }
+                    : { filename: currentImage.file ? currentImage.file.split('/').pop() : (currentImage.filename || ''), archived: isArchived ? 0 : 1 };
+                const resp = await fetch('api/set_archived.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error_key || 'archive_failed');
+                }
+                await loadImageGrid();
+                try { window.dispatchEvent(new CustomEvent('refreshMyImages')); } catch (_) {}
+                // For reliability of state and labels, reload the page after (de)archiving
+                window.location.reload();
+            } catch (err) {
+                alert(translate('lightbox.error.archiveFailed'));
+            }
+        });
+
+        // Delete handler from dropdown
+        document.getElementById('lbDeleteBtn').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            actionsDropdown.classList.add('hidden');
+            const currentImage = (function(){
+                if (currentGalleryIndex >= 0 && galleryImages[currentGalleryIndex]) return galleryImages[currentGalleryIndex];
+                if (typeof getCurrentLightboxImage === 'function') return getCurrentLightboxImage();
+                return null;
+            })();
             if (!currentImage) return;
             let batchDelete = false;
             let batchSize = 1;
             if (currentImage.batchId) {
-                // Count all images with this batchId
                 batchSize = allImages.filter(img => img.batchId === currentImage.batchId).length;
-                batchDelete = true;
+                batchDelete = batchSize > 1;
             }
             let confirmMsg = translate('lightbox.deleteConfirm.single');
-            if (batchDelete && batchSize > 1) {
+            if (batchDelete) {
                 confirmMsg = translate('lightbox.deleteConfirm.batch.prefix') + batchSize + translate('lightbox.deleteConfirm.batch.suffix');
             }
-            if (!confirm(confirmMsg)) {
-                return;
-            }
+            if (!confirm(confirmMsg)) return;
             try {
-                const body = batchDelete && batchSize > 1
+                const body = batchDelete
                     ? { batchId: currentImage.batchId }
                     : { filename: currentImage.file };
                 const response = await fetch('api/delete_image.php', {
@@ -744,7 +858,7 @@ export function initLightbox({
                     body: JSON.stringify(body)
                 });
                 if (!response.ok) {
-                    const error = await response.json();
+                    const error = await response.json().catch(() => ({}));
                     throw new Error(error.error || translate('lightbox.error.deleteFailedGeneral'));
                 }
                 lightbox.classList.add('hidden');
@@ -752,11 +866,8 @@ export function initLightbox({
                 lightboxImage.src = '#';
                 setCurrentGalleryIndex(-1);
                 await loadImageGrid();
-                alert(batchDelete && batchSize > 1
-                    ? translate('lightbox.alert.batchDeleteSuccess')
-                    : translate('lightbox.alert.singleDeleteSuccess'));
+                alert(batchDelete ? translate('lightbox.alert.batchDeleteSuccess') : translate('lightbox.alert.singleDeleteSuccess'));
             } catch (error) {
-                console.error('Delete error:', error);
                 alert(error.message || translate('lightbox.error.deleteFailedGeneral'));
             }
         });
@@ -771,7 +882,14 @@ export function initLightbox({
                 let filesToUpdate = [currentImage.file.split('/').pop()];
                 // Wenn Batch: alle Bilder der Batch updaten
                 if (currentImage.batchId) {
-                    filesToUpdate = allImages.filter(img => img.batchId === currentImage.batchId).map(img => img.file.split('/').pop());
+                    let batchList = allImages.filter(img => img.batchId === currentImage.batchId);
+                    // Fallback: falls aus Archiv geöffnet und nicht in allImages vorhanden
+                    if ((!batchList || batchList.length === 0) && tempDirectImage && Array.isArray(tempDirectImage.batchImages)) {
+                        batchList = tempDirectImage.batchImages;
+                    }
+                    if (batchList && batchList.length > 0) {
+                        filesToUpdate = batchList.map(img => img.file.split('/').pop());
+                    }
                 }
                 for (const filename of filesToUpdate) {
                     const response = await fetch('api/set_private.php', {
@@ -796,11 +914,22 @@ export function initLightbox({
                 if (reopenIdx !== -1) {
                     openGalleryLightbox(reopenIdx);
                 } else {
+                    // Direkt geöffnet (z.B. Archiv): Lightbox offen halten und Inhalt aktualisieren
+                    try {
+                        const updated = { ...currentImage, private: (isPrivate ? '1' : '0') };
+                        if (tempDirectImage && Array.isArray(tempDirectImage.batchImages)) {
+                            updated.batchImages = tempDirectImage.batchImages;
+                        }
+                        showBatchImageDirect(updated);
+                    } catch (_) {
                     lightbox.classList.add('hidden');
                     lightbox.classList.remove('active');
                     lightboxImage.src = '#';
                     setCurrentGalleryIndex(-1);
                 }
+                }
+                // Notify My Images to refresh
+                try { window.dispatchEvent(new CustomEvent('refreshMyImages')); } catch (_) {}
             } catch (error) {
                 alert(error.message || translate('lightbox.error.setPrivateStatusFailedGeneral'));
                 // UI zurücksetzen
@@ -951,6 +1080,30 @@ export function initLightbox({
             } else {
                 deleteImageBtn.classList.add('hidden');
             }
+        }
+        // Update archive toggle label based on current image status
+        updateArchiveToggleLabel();
+    }
+
+    // Helper: Update archive/unarchive label in dropdown based on current image
+    function updateArchiveToggleLabel() {
+        try {
+            const labelEl = document.getElementById('lbArchiveToggleLabel');
+            if (!labelEl) return;
+            const currentImage = getCurrentLightboxImage();
+            if (!currentImage) {
+                labelEl.textContent = translate('lightbox.actions.archive');
+                return;
+            }
+            // Check archived status: first from image object, then fallback to tempDirectImage
+            const isArchived = currentImage.archived === '1' || (tempDirectImage && tempDirectImage.archived === '1');
+            labelEl.textContent = isArchived ? translate('lightbox.actions.unarchive') : translate('lightbox.actions.archive');
+        } catch (_) {
+            // Fallback
+            try {
+                const labelEl = document.getElementById('lbArchiveToggleLabel');
+                if (labelEl) labelEl.textContent = translate('lightbox.actions.archive');
+            } catch (_) {}
         }
     }
 } 

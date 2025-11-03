@@ -2,3 +2,5 @@ data/
 project.ini
 www/images/
 .htaccess
+www/pro/
+test.html

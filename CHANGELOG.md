@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0]
 
 ### Added
+- **Centralized Pricing Management**
+  - Pricing is now stored in the database, seeded with defaults during setup, and made available to both backend and frontend through new pricing endpoints
+  - Uploads calculate costs based on the currently active pricing schema, and schema IDs are saved with each generation for historical analysis
+  - The customization modal provides admins with a USD-based management interface for OpenAI and Gemini prices; frontend fetches current prices dynamically and displays all costs consistently in USD
+
 - **Archive Feature for Image Generations**
   - New "Archive" tab in the My Images modal for organizing generations
   - Archived images are hidden from the main gallery but remain accessible in the Archive tab
@@ -31,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     5. Delete
   - Added "Action:" label prefix for better visual structure
   - Enhanced button labels for improved clarity and user experience
+
+ ### Changed
+- Simplified the Surprise Me prompt generator with curated building blocks and lighter templates to produce shorter, more coherent inspirations.
+- Removed streaming for OpenAI batch generations, since it results in too many errors and faulty jobs
+  
 
 ## [1.1.0] - 2025-10-28
 

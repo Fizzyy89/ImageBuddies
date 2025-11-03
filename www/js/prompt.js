@@ -6,6 +6,80 @@ export let uploadedFiles = [];
 export let currentMode = 'openai'; // 'openai' or 'gemini'
 export let geminiAvailable = false;
 
+const defaultPricing = {
+    schema: '2025-11',
+    currency: 'USD',
+    unit: 'cent',
+    openai: {
+        low: 1,
+        medium: 4,
+        high: 17,
+        input: 3
+    },
+    gemini: {
+        output: 4,
+        input: 0
+    }
+};
+
+let pricingData = { ...defaultPricing };
+
+export function setPricingData(data) {
+    if (!data || typeof data !== 'object') return;
+
+    const openai = {
+        ...defaultPricing.openai,
+        ...(typeof data.openai === 'object' ? data.openai : {})
+    };
+
+    const gemini = {
+        ...defaultPricing.gemini,
+        ...(typeof data.gemini === 'object' ? data.gemini : {})
+    };
+
+    pricingData = {
+        ...defaultPricing,
+        ...data,
+        openai,
+        gemini
+    };
+
+    updatePricingBadges();
+}
+
+export function getPricingData() {
+    return pricingData;
+}
+
+function toCents(value, fallback) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+        return fallback;
+    }
+    return Math.max(0, Math.round(num));
+}
+
+function formatUsd(cents) {
+    const dollars = cents / 100;
+    return `$${dollars.toFixed(2)}`;
+}
+
+function updatePricingBadges() {
+    const tiers = [
+        ['openai-low', pricingData.openai?.low, defaultPricing.openai.low],
+        ['openai-medium', pricingData.openai?.medium, defaultPricing.openai.medium],
+        ['openai-high', pricingData.openai?.high, defaultPricing.openai.high]
+    ];
+
+    tiers.forEach(([key, value, fallback]) => {
+        const el = document.querySelector(`[data-pricing-tier="${key}"]`);
+        if (!el) return;
+        el.textContent = formatUsd(toCents(value, fallback));
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => updatePricingBadges());
+
 // Cache for random prompt elements
 let randomPromptElements = null;
 
@@ -33,24 +107,138 @@ function getRandomElement(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
+function extractPlaceholders(template) {
+    if (typeof template !== 'string') {
+        return [];
+    }
+
+    const matches = template.matchAll(/\{(\w+)\}/g);
+    return Array.from(new Set(Array.from(matches, (match) => match[1])));
+}
+
+function fillTemplate(template, values) {
+    if (typeof template !== 'string') {
+        return '';
+    }
+
+    return template.replace(/\{(\w+)\}/g, (_, key) => values[key] || '');
+}
+
+function cleanPrompt(text) {
+    return (text || '')
+        .replace(/\s+,/g, ',')
+        .replace(/,\s*/g, ', ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+function getValuePool(elements, key) {
+    if (!elements || !key) return null;
+
+    const pluralKey = `${key}s`;
+    const candidates = [
+        elements.core?.[key],
+        elements.core?.[pluralKey],
+        elements.accents?.[key],
+        elements.accents?.[pluralKey],
+        elements[key],
+        elements[pluralKey]
+    ];
+
+    return candidates.find((pool) => Array.isArray(pool) && pool.length) || null;
+}
+
+function ensureValue(elements, cache, key) {
+    if (cache[key]) {
+        return cache[key];
+    }
+
+    const pool = getValuePool(elements, key);
+    if (!pool) {
+        return null;
+    }
+
+    const value = getRandomElement(pool);
+    cache[key] = value;
+    return value;
+}
+
+function fallbackSimplePrompt(elements) {
+    const values = {};
+    const subject = ensureValue(elements, values, 'subject');
+    const artStyle = ensureValue(elements, values, 'artStyle');
+
+    if (subject && artStyle) {
+        return cleanPrompt(`${subject} interpreted as ${artStyle}`);
+    }
+
+    return cleanPrompt(subject || artStyle || '');
+}
+
+function generateLegacyPrompt(elements) {
+    if (!elements || !Array.isArray(elements.templates) || !elements.templates.length) {
+        return fallbackSimplePrompt(elements);
+    }
+
+    const values = {};
+    ensureValue(elements, values, 'subject');
+    ensureValue(elements, values, 'artStyle');
+    ensureValue(elements, values, 'atmosphere');
+    ensureValue(elements, values, 'composition');
+    ensureValue(elements, values, 'colors');
+    ensureValue(elements, values, 'details');
+
+    const template = getRandomElement(elements.templates);
+    return cleanPrompt(fillTemplate(template, values));
+}
+
+function generateCuratedPrompt(elements) {
+    const preset = getRandomElement(elements.presets);
+    if (!preset || typeof preset.base !== 'string') {
+        return fallbackSimplePrompt(elements);
+    }
+
+    const values = {};
+    const requiredKeys = extractPlaceholders(preset.base);
+
+    for (const key of requiredKeys) {
+        if (!ensureValue(elements, values, key)) {
+            return fallbackSimplePrompt(elements);
+        }
+    }
+
+    let prompt = fillTemplate(preset.base, values);
+
+    if (Array.isArray(preset.optional)) {
+        preset.optional.forEach((segment) => {
+            if (!segment || typeof segment.template !== 'string') return;
+
+            const chance = typeof segment.chance === 'number' ? segment.chance : 0.5;
+            if (Math.random() > Math.max(0, Math.min(1, chance))) return;
+
+            const neededKeys = extractPlaceholders(segment.template);
+            const allAvailable = neededKeys.every((key) => ensureValue(elements, values, key));
+
+            if (!allAvailable) return;
+
+            prompt += fillTemplate(segment.template, values);
+        });
+    }
+
+    return cleanPrompt(prompt);
+}
+
 // Generate structured random prompt
 function generateStructuredRandomPrompt(elements) {
-    const subject = getRandomElement(elements.subjects);
-    const artStyle = getRandomElement(elements.artStyles);
-    const atmosphere = getRandomElement(elements.atmosphere);
-    const composition = getRandomElement(elements.composition);
-    const colors = getRandomElement(elements.colors);
-    const details = getRandomElement(elements.details);
-    const template = getRandomElement(elements.templates);
-    
-    // Template mit den ausgewählten Elementen füllen
-    return template
-        .replace('{subject}', subject)
-        .replace('{artStyle}', artStyle)
-        .replace('{atmosphere}', atmosphere)
-        .replace('{composition}', composition)
-        .replace('{colors}', colors)
-        .replace('{details}', details);
+    if (!elements) {
+        return '';
+    }
+
+    if (Array.isArray(elements.presets) && elements.presets.length) {
+        return generateCuratedPrompt(elements);
+    }
+
+    return generateLegacyPrompt(elements);
 }
 
 // Create language-specific LLM prompt
@@ -348,7 +536,10 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
         costDisplay.id = 'refImagesCost';
         imagePreviewContainer.parentNode.insertBefore(costDisplay, imagePreviewContainer.nextSibling);
     }
-    const totalCost = uploadedFiles.length * 3;
+    const refUnit = currentMode === 'gemini'
+        ? toCents(pricingData.gemini?.input, defaultPricing.gemini.input)
+        : toCents(pricingData.openai?.input, defaultPricing.openai.input);
+    const totalCost = uploadedFiles.length * refUnit;
     costDisplay.className = 'flex items-center gap-3 text-sm mb-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-4 py-2.5 rounded-lg border border-indigo-100 dark:border-indigo-500/20';
     costDisplay.innerHTML = `
         <div class="flex items-center gap-2">
@@ -362,7 +553,7 @@ export function updateImagePreviews(uploadedFiles, imagePreviewContainer, remove
             <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span>${translate('label.additionalCosts.prefix') + totalCost + translate('label.additionalCosts.suffix')}</span>
+            <span>${translate('label.additionalCosts')} ${formatUsd(totalCost)}</span>
         </div>
     `;
     costDisplay.classList.remove('hidden');
@@ -641,33 +832,35 @@ export function updateGeminiUploadGrid() {
 export function updateTotalCost() {
     // In Gemini mode, calculate based on input/output images
     if (currentMode === 'gemini') {
-        const inputImageCost = uploadedFiles.length * 15; // 15 cents per input image
-        const outputImageCost = 3; // 3 cents for output image
+        const geminiPricing = pricingData.gemini ?? defaultPricing.gemini;
+        const inputUnit = toCents(geminiPricing.input, defaultPricing.gemini.input);
+        const outputUnit = toCents(geminiPricing.output, defaultPricing.gemini.output);
+        const inputImageCost = uploadedFiles.length * inputUnit;
+        const outputImageCost = outputUnit;
         const totalCost = inputImageCost + outputImageCost;
         
         const costLabel = document.getElementById('costLabel');
         if (costLabel) {
-            costLabel.textContent = translate('label.apiCosts.prefix') + totalCost + translate('label.apiCosts.suffix');
+            costLabel.textContent = `${translate('label.apiCosts')} ${formatUsd(totalCost)}`;
         }
         return totalCost;
     }
     
     const qualityBtn = document.querySelector('.quality-btn.selected');
     const imageCountBtn = document.querySelector('.image-count-btn.selected');
-    const qualityCosts = {
-        'low': 3,
-        'medium': 6,
-        'high': 25
-    };
-    const qualityCost = qualityBtn ? qualityCosts[qualityBtn.dataset.value] : 6; // Default: medium
+    const openaiPricing = pricingData.openai ?? defaultPricing.openai;
+    const qualityKey = qualityBtn ? qualityBtn.dataset.value : 'medium';
+    const fallbackQualityKey = ['low', 'medium', 'high'].includes(qualityKey) ? qualityKey : 'medium';
+    const qualityCost = toCents(openaiPricing[fallbackQualityKey], defaultPricing.openai[fallbackQualityKey]);
     const imageCount = imageCountBtn ? parseInt(imageCountBtn.dataset.value) : 1;
-    const refImagesCost = uploadedFiles.length * 3;
+    const refUnit = toCents(openaiPricing.input, defaultPricing.openai.input);
+    const refImagesCost = uploadedFiles.length * refUnit;
     const totalCost = (qualityCost * imageCount) + refImagesCost;
     
     // Update cost label
     const costLabel = document.getElementById('costLabel');
     if (costLabel) {
-        costLabel.textContent = translate('label.apiCosts.prefix') + totalCost + translate('label.apiCosts.suffix');
+        costLabel.textContent = `${translate('label.apiCosts')} ${formatUsd(totalCost)}`;
     }
 
     // Update generate button text

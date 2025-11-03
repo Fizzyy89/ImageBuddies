@@ -656,23 +656,7 @@ export function initLightbox({
                     uploadedFiles.push(file);
                     const imagePreviewContainer = document.getElementById('imagePreviewContainer');
                     const removeAllImagesBtn = document.getElementById('removeAllImagesBtn');
-                    updateImagePreviews(uploadedFiles, imagePreviewContainer, removeAllImagesBtn, () => {
-                        const qualityBtn = document.querySelector('.quality-btn.selected');
-                        const imageCountBtn = document.querySelector('.image-count-btn.selected');
-                        const qualityCosts = {
-                            'low': 3,
-                            'medium': 6,
-                            'high': 25
-                        };
-                        const qualityCost = qualityBtn ? qualityCosts[qualityBtn.dataset.value] : 6;
-                        const imageCount = imageCountBtn ? parseInt(imageCountBtn.dataset.value) : 1;
-                        const refImagesCost = uploadedFiles.length * 4;
-                        const totalCost = (qualityCost * imageCount) + refImagesCost;
-                        const costLabel = document.getElementById('costLabel');
-                        if (costLabel) {
-                            costLabel.textContent = translate('label.apiCosts.prefix') + totalCost + translate('label.apiCosts.suffix');
-                        }
-                    });
+                    updateImagePreviews(uploadedFiles, imagePreviewContainer, removeAllImagesBtn, updateTotalCost);
                 }
             } catch (error) {
                 console.error('Error adding reference image:', error);

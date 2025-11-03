@@ -1,6 +1,24 @@
 import { changeLanguage, translate } from './i18n.js';
 
 let currentCustomization = {};
+let currentPricing = null;
+let pricingInputs = {};
+
+const pricingDefaultsCents = {
+    schema: '2025-11',
+    currency: 'USD',
+    unit: 'cent',
+    openai: {
+        low: 1,
+        medium: 4,
+        high: 17,
+        input: 3
+    },
+    gemini: {
+        output: 4,
+        input: 0
+    }
+};
 
 // Header Visibility Handler
 function updateHeaderVisibility(hideHeader, isInitialLoad = false) {
@@ -38,6 +56,104 @@ function showNotification(messageKey, type = 'success') {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+function mergePricing(pricing) {
+    const source = (pricing && typeof pricing === 'object') ? pricing : {};
+    return {
+        ...pricingDefaultsCents,
+        ...source,
+        openai: {
+            ...pricingDefaultsCents.openai,
+            ...(source.openai ?? {})
+        },
+        gemini: {
+            ...pricingDefaultsCents.gemini,
+            ...(source.gemini ?? {})
+        }
+    };
+}
+
+function centsToUsdString(cents) {
+    const num = Number(cents);
+    if (!Number.isFinite(num)) return '0.00';
+    return (num / 100).toFixed(2);
+}
+
+function parseUsdValue(value) {
+    if (typeof value !== 'string') value = String(value ?? '');
+    const normalized = value.replace(',', '.').trim();
+    if (normalized === '') return null;
+    const num = Number.parseFloat(normalized);
+    if (!Number.isFinite(num) || num < 0) return null;
+    return num;
+}
+
+function updatePricingInputs(pricing) {
+    if (!pricingInputs.openaiLow) return;
+    const merged = mergePricing(pricing ?? currentPricing);
+
+    pricingInputs.openaiLow.value = centsToUsdString(merged.openai.low);
+    pricingInputs.openaiMedium.value = centsToUsdString(merged.openai.medium);
+    pricingInputs.openaiHigh.value = centsToUsdString(merged.openai.high);
+    pricingInputs.openaiInput.value = centsToUsdString(merged.openai.input);
+    pricingInputs.geminiOutput.value = centsToUsdString(merged.gemini.output);
+    pricingInputs.geminiInput.value = centsToUsdString(merged.gemini.input);
+}
+
+function gatherPricingValues() {
+    if (!pricingInputs.openaiLow) return null;
+
+    const mapping = [
+        ['openaiLow', 'openai', 'low'],
+        ['openaiMedium', 'openai', 'medium'],
+        ['openaiHigh', 'openai', 'high'],
+        ['openaiInput', 'openai', 'input'],
+        ['geminiOutput', 'gemini', 'output'],
+        ['geminiInput', 'gemini', 'input']
+    ];
+
+    const usd = { openai: {}, gemini: {} };
+    const cents = { openai: {}, gemini: {} };
+
+    for (const [key, category, field] of mapping) {
+        const input = pricingInputs[key];
+        if (!input) return null;
+        const parsed = parseUsdValue(input.value);
+        if (parsed === null) {
+            return null;
+        }
+        usd[category][field] = Number(parsed.toFixed(4));
+        cents[category][field] = Math.round(parsed * 100);
+    }
+
+    return { usd, cents };
+}
+
+function pricingHasChanged(newCents) {
+    const baseline = mergePricing(currentPricing);
+    const openaiKeys = ['low', 'medium', 'high', 'input'];
+    const geminiKeys = ['output', 'input'];
+
+    return openaiKeys.some(key => Number(newCents.openai[key]) !== Number(baseline.openai[key])) ||
+        geminiKeys.some(key => Number(newCents.gemini[key]) !== Number(baseline.gemini[key]));
+}
+
+async function loadPricingSettings() {
+    try {
+        const response = await fetch('./api/get_pricing.php');
+        if (!response.ok) throw new Error('pricing_request_failed');
+        const data = await response.json();
+        currentPricing = data;
+        updatePricingInputs(currentPricing);
+    } catch (error) {
+        console.error('Error loading pricing settings:', error);
+        if (!currentPricing) {
+            currentPricing = mergePricing(pricingDefaultsCents);
+        }
+        updatePricingInputs(currentPricing);
+        showNotification('notification.pricingLoadFailed', 'error');
+    }
 }
 
 // Dynamically render feature inputs
@@ -145,10 +261,24 @@ export function initCustomization() {
     const resetCustomForm = document.getElementById('resetCustomForm');
     const featuresContainer = document.getElementById('featuresContainer');
     const apiKeyField = document.getElementById('apiKeyField');
+    const pricingField = document.getElementById('pricingField');
     const openaiKeyInput = document.getElementById('openaiKey');
     const toggleApiKey = document.getElementById('toggleApiKey');
     const geminiKeyInput = document.getElementById('geminiKey');
     const toggleGeminiKey = document.getElementById('toggleGeminiKey');
+
+    pricingInputs = {
+        openaiLow: document.getElementById('pricingOpenAiLow'),
+        openaiMedium: document.getElementById('pricingOpenAiMedium'),
+        openaiHigh: document.getElementById('pricingOpenAiHigh'),
+        openaiInput: document.getElementById('pricingOpenAiInput'),
+        geminiOutput: document.getElementById('pricingGeminiOutput'),
+        geminiInput: document.getElementById('pricingGeminiInput')
+    };
+
+    Object.values(pricingInputs).forEach(input => {
+        if (input) input.setAttribute('disabled', 'disabled');
+    });
     let isAdmin = false;
     let loadedApiKey = '';
     let loadedGeminiKey = '';
@@ -162,8 +292,16 @@ export function initCustomization() {
                 mobileCustomButton?.classList.remove('hidden');
                 isAdmin = true;
                 apiKeyField?.classList.remove('hidden');
+                pricingField?.classList.remove('hidden');
+                Object.values(pricingInputs).forEach(input => {
+                    if (input) input.removeAttribute('disabled');
+                });
             } else {
                 apiKeyField?.classList.add('hidden');
+                pricingField?.classList.add('hidden');
+                Object.values(pricingInputs).forEach(input => {
+                    if (input) input.setAttribute('disabled', 'disabled');
+                });
             }
         });
 
@@ -253,8 +391,8 @@ export function initCustomization() {
 
     // Form Reset Handler
     if (resetCustomForm) {
-        resetCustomForm.addEventListener('click', () => {
-            loadCustomization(featuresContainer);
+        resetCustomForm.addEventListener('click', async () => {
+            await loadCustomization(featuresContainer);
             if (isAdmin) {
                 if (openaiKeyInput) {
                     openaiKeyInput.value = loadedApiKey;
@@ -288,6 +426,8 @@ export function initCustomization() {
             let newApiKey = '';
             let geminiKeyChanged = false;
             let newGeminiKey = '';
+            let pricingFormValues = null;
+            let pricingChanged = false;
             
             if (isAdmin) {
                 if (openaiKeyInput) {
@@ -298,6 +438,13 @@ export function initCustomization() {
                     newGeminiKey = geminiKeyInput.value.trim();
                     geminiKeyChanged = newGeminiKey !== loadedGeminiKey;
                 }
+
+                pricingFormValues = gatherPricingValues();
+                if (!pricingFormValues) {
+                    showNotification('notification.pricingValidationFailed', 'error');
+                    return;
+                }
+                pricingChanged = pricingHasChanged(pricingFormValues.cents);
             }
             
             try {
@@ -346,6 +493,39 @@ export function initCustomization() {
                         })
                         .catch(() => showNotification('notification.geminiKeySaveFailed', 'error'));
                     }
+
+                    let pricingUpdateFailed = false;
+                    if (isAdmin && pricingChanged) {
+                        try {
+                            const pricingPayload = {
+                                unit: 'usd',
+                                schema: (currentPricing && currentPricing.schema) ? currentPricing.schema : pricingDefaultsCents.schema,
+                                openai: pricingFormValues.usd.openai,
+                                gemini: pricingFormValues.usd.gemini
+                            };
+                            const pricingResponse = await fetch('api/update_pricing.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(pricingPayload)
+                            });
+                            const pricingResult = await pricingResponse.json();
+                            if (!pricingResponse.ok || !pricingResult.success) {
+                                pricingUpdateFailed = true;
+                                showNotification(pricingResult.error || 'notification.pricingSaveFailed', 'error');
+                            } else {
+                                currentPricing = mergePricing(pricingResult.pricing);
+                                updatePricingInputs(currentPricing);
+                            }
+                        } catch (err) {
+                            pricingUpdateFailed = true;
+                            showNotification('notification.pricingSaveFailed', 'error');
+                        }
+                    }
+
+                    if (pricingUpdateFailed) {
+                        return;
+                    }
+
                     // Update page without full reload
                     updatePageContent(data);
                     customModal.classList.add('hidden');
@@ -408,6 +588,8 @@ async function loadCustomization(featuresContainer) {
         } else {
             console.error('Customization form not found!');
         }
+
+        await loadPricingSettings();
     } catch (error) {
         console.error('Error loading customization:', error);
         showNotification('notification.loadSettingsFailed', 'error');

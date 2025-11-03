@@ -30,6 +30,8 @@ $timestamp = preg_replace('/[^0-9T\-]/', '', $data['timestamp']);
 $filename = "image_{$timestamp}.png";
 $image_data = base64_decode($data['imageBase64']);
 require_once dirname(__DIR__) . '/../src/bootstrap.php';
+require_once IMB_SRC_DIR . '/pricing.php';
+$pricingSchema = IMB_PRICING_SCHEMA;
 $imageDir = IMB_IMAGE_DIR;
 if (!is_dir($imageDir)) mkdir($imageDir, 0777, true);
 $fullImagePath = $imageDir . '/' . $filename;
@@ -52,51 +54,25 @@ if (!$srcImg) {
 } else {
     $srcW = imagesx($srcImg);
     $srcH = imagesy($srcImg);
-    
-    // Determine target sizes
-    if ($mode === 'gemini') {
-        // For Gemini, always dynamic based on actual dimensions
+
+    if ($srcW > 0 && $srcH > 0) {
+        // Dynamische Skalierung für alle Modi
         $aspectRatio = $srcW / $srcH;
         $maxDimension = 600; // maximale Kante
-        if ($aspectRatio > 1) {
-            // Landscape
+        if ($aspectRatio >= 1) {
+            // Landscape oder Quadrat
             $thumbW = $maxDimension;
-            $thumbH = (int)($thumbW / $aspectRatio);
+            $thumbH = max(1, (int)round($thumbW / $aspectRatio));
         } else {
-            // Portrait or square
+            // Portrait
             $thumbH = $maxDimension;
-            $thumbW = (int)($thumbH * $aspectRatio);
+            $thumbW = max(1, (int)round($thumbH * $aspectRatio));
         }
     } else {
-        // OpenAI mode: map to selected size
-        switch ($size) {
-            case '1024x1024': // 1:1
-                $thumbW = 400;
-                $thumbH = 400;
-                break;
-            case '1024x1536': // 2:3 portrait
-                $thumbW = 400;
-                $thumbH = 600;
-                break;
-            case '1536x1024': // 3:2 landscape
-                $thumbW = 600;
-                $thumbH = 400;
-                break;
-            default:
-                // Dynamic fallback
-                $aspectRatio = $srcW / $srcH;
-                $maxDimension = 600;
-                if ($aspectRatio > 1) {
-                    $thumbW = $maxDimension;
-                    $thumbH = (int)($thumbW / $aspectRatio);
-                } else {
-                    $thumbH = $maxDimension;
-                    $thumbW = (int)($thumbH * $aspectRatio);
-                }
-                break;
-        }
+        $thumbW = 400;
+        $thumbH = 400;
     }
-    
+
     // Create thumbnail with computed dimensions
     $thumbImg = imagecreatetruecolor($thumbW, $thumbH);
     imagealphablending($thumbImg, false);
@@ -211,6 +187,10 @@ if ($imgSize && isset($imgSize[0], $imgSize[1]) && $imgSize[0] > 0 && $imgSize[1
 // Persist to SQLite
 require_once IMB_SRC_DIR . '/db.php';
 
+// Load pricing
+$pricingData = imb_pricing_load();
+$pricingSchema = $pricingData['schema'] ?? IMB_PRICING_SCHEMA;
+
 // Get/create user_id
 $u = db_row('SELECT id FROM users WHERE username = ?', [$user]);
 if ($u === null) {
@@ -224,16 +204,21 @@ if ($u === null) {
 }
 $user_id = intval($u['id']);
 
-// Calculate costs
+// Calculate costs based on pricing table
 $imageCost = 0;
 $refCost = 0;
 if ($mode === 'gemini') {
-    $imageCost = 3;                 // 3 Cent Output
-    $refCost = $ref_image_count * 15; // 15 Cent je Input-Bild
+    $geminiPricing = $pricingData['gemini'] ?? [];
+    $imageCost = isset($geminiPricing['output']) ? (int)$geminiPricing['output'] : 0;
+    $refUnit = isset($geminiPricing['input']) ? (int)$geminiPricing['input'] : 0;
+    $refCost = $ref_image_count * $refUnit;
 } else {
-    // openai
-    $imageCost = ($quality === 'low') ? 3 : (($quality === 'high') ? 25 : 6);
-    $refCost = $ref_image_count * 3;  // 3 Cent je Referenz
+    $openaiPricing = $pricingData['openai'] ?? [];
+    $qualityKey = in_array($quality, ['low', 'medium', 'high'], true) ? $quality : 'medium';
+    $defaultOpenAi = imb_pricing_defaults();
+    $imageCost = isset($openaiPricing[$qualityKey]) ? (int)$openaiPricing[$qualityKey] : (int)$defaultOpenAi['openai'][$qualityKey];
+    $refUnit = isset($openaiPricing['input']) ? (int)$openaiPricing['input'] : (int)$defaultOpenAi['openai']['input'];
+    $refCost = $ref_image_count * $refUnit;
 }
 $totalCost = $imageCost + $refCost;
 
@@ -263,7 +248,7 @@ try {
             $imageCost,
             $refCost,
             $totalCost,
-            '2025-10'
+            $pricingSchema
         ]
     );
     echo json_encode(['success' => true]);

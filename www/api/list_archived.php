@@ -18,24 +18,6 @@ function sanitize_batch_id($batchId) {
     return preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
 }
 
-function ensure_archived_column_exists_la() {
-    try {
-        $cols = db_rows("PRAGMA table_info(generations)");
-        $has = false;
-        foreach ($cols as $c) {
-            if (isset($c['name']) && $c['name'] === 'archived') { $has = true; break; }
-        }
-        if (!$has) {
-            db_exec('ALTER TABLE generations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
-            @db_exec('CREATE INDEX IF NOT EXISTS idx_generations_archived ON generations (archived, created_at DESC)');
-        }
-    } catch (Throwable $e) {
-        // ignore
-    }
-}
-
-ensure_archived_column_exists_la();
-
 function list_ref_images_arch($batchId, $owner, $currentUser, $isAdmin) {
     if (!$batchId || (!$isAdmin && $owner !== $currentUser)) return [];
     $safeBatch = sanitize_batch_id($batchId);

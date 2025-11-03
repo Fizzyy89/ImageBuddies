@@ -5,6 +5,7 @@ require_once dirname(__DIR__) . '/../src/bootstrap.php';
 require_once IMB_SRC_DIR . '/password_validation.php';
 require_once IMB_SRC_DIR . '/db.php';
 require_once IMB_SRC_DIR . '/crypto.php';
+require_once IMB_SRC_DIR . '/pricing.php';
 
 $dbPath = IMB_DATA_DIR;
 
@@ -171,6 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'customization',
                 $customJson
             ]);
+
+            // Seed pricing defaults
+            imb_pricing_save(imb_pricing_defaults());
 
             // Store OpenAI key encrypted in DB (optional, may be empty)
             $apiKeyTrim = isset($data['apiKey']) ? trim($data['apiKey']) : '';

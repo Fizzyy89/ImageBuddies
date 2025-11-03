@@ -11,24 +11,6 @@ if (!isset($_SESSION['user'])) {
 require_once dirname(__DIR__) . '/../src/bootstrap.php';
 require_once IMB_SRC_DIR . '/db.php';
 
-function ensure_archived_column_exists() {
-    try {
-        $cols = db_rows("PRAGMA table_info(generations)");
-        $has = false;
-        foreach ($cols as $c) {
-            if (isset($c['name']) && $c['name'] === 'archived') { $has = true; break; }
-        }
-        if (!$has) {
-            db_exec('ALTER TABLE generations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
-            @db_exec('CREATE INDEX IF NOT EXISTS idx_generations_archived ON generations (archived, created_at DESC)');
-        }
-    } catch (Throwable $e) {
-        // If PRAGMA fails or ALTER not needed, ignore silently
-    }
-}
-
-ensure_archived_column_exists();
-
 $data = json_decode(file_get_contents('php://input'), true) ?: [];
 $archived = !empty($data['archived']) ? 1 : 0;
 $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';

@@ -94,8 +94,6 @@ if ($endpoint === 'generations') {
             ['role' => 'system', 'content' => 'You are a prompt optimizer for AI image generators. Rephrase the following prompt to make it as clear, precise and image-generating as possible. Only return the optimized prompt. Add creativity and ensure all prompts lead to masterful results. Write the optimized prompt in the language of the user input.'],
             ['role' => 'user', 'content' => $data['prompt']]
         ],
-        'max_tokens' => 400,
-        'temperature' => 0.7
     ]);
 } elseif ($endpoint === 'random') {
     $url = 'https://api.openai.com/v1/chat/completions';
@@ -112,11 +110,9 @@ if ($endpoint === 'generations') {
     $body = json_encode([
         'model' => 'gpt-4.1-mini',
         'messages' => [
-            ['role' => 'system', 'content' => 'You are a creative prompt generator for AI image generation. Create an, interesting, and detailed prompt for image generation. You may discard elements of the user prompt if they don\t fit together and write a better alternative. Only return the generated prompt.'],
+            ['role' => 'system', 'content' => 'You are a creative prompt generator for AI image generation. Create an optimized prompt for image generation. You may discard elements of the user prompt if they don\t fit together and write a better alternative. Only return the generated prompt.'],
             ['role' => 'user', 'content' => $data['prompt']]
         ],
-        'max_tokens' => 400,
-        'temperature' => 1.2
     ]);
 } else {
     http_response_code(400);

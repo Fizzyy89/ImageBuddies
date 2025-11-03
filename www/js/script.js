@@ -1,6 +1,6 @@
 import { initAuth, checkLogin, setUserUI, showLogin, hideLogin } from './auth.js';
 import { initTheme, toggleTheme, syncMobileThemeToggle } from './theme.js';
-import { initPromptHandlers, initSurpriseMeHandler, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles, initModeToggle, updateGeminiUploadGrid } from './prompt.js';
+import { initPromptHandlers, initSurpriseMeHandler, createImageUploadInput, handleImagePaste, handleImageDrop, updateImagePreviews, updateTotalCost, uploadedFiles, initModeToggle, updateGeminiUploadGrid, setPricingData } from './prompt.js';
 import { generateImage, downloadImage } from './generate.js';
 import { galleryImages, allImages, showOnlyUserImages, updateGridLayout, loadImageGrid, setShowOnlyUserImages, getShowOnlyUserImages, setGridSize, getGridSize, setShowAdminPrivateImages, getShowAdminPrivateImages } from './gallery.js';
 import { initLightbox } from './lightbox.js';
@@ -22,6 +22,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize i18n after confirming setup is complete
     await initI18n();
+
+    // Load pricing configuration
+    try {
+        const pricingResponse = await fetch('api/get_pricing.php');
+        if (pricingResponse.ok) {
+            const pricing = await pricingResponse.json();
+            setPricingData(pricing);
+        }
+    } catch (error) {
+        console.error('Failed to load pricing configuration:', error);
+    }
     
     // Initialize user info badge
     initUserInfo();

@@ -222,14 +222,20 @@ if ($mode === 'gemini') {
 }
 $totalCost = $imageCost + $refCost;
 
+$batchParam = ($batchId !== '') ? $batchId : null; // avoid UNIQUE(NULL, n) conflicts across batches
+$isMainImage = 1;
+if ($batchParam !== null) {
+    $rowMain = db_row('SELECT id FROM generations WHERE batch_id = ? AND is_main_image = 1 LIMIT 1', [$batchId]);
+    $isMainImage = $rowMain === null ? 1 : 0;
+}
+
 try {
-    $batchParam = ($batchId !== '') ? $batchId : null; // avoid UNIQUE(NULL, n) conflicts across batches
     db_exec(
         'INSERT INTO generations (
             created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
-            ref_image_count, width, height, aspect_class, deleted,
+            ref_image_count, width, height, aspect_class, is_main_image, deleted,
             cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [
             $timestamp,
             $mode,
@@ -244,6 +250,7 @@ try {
             isset($srcW) ? $srcW : null,
             isset($srcH) ? $srcH : null,
             $aspect_class,
+            $isMainImage,
             0,
             $imageCost,
             $refCost,

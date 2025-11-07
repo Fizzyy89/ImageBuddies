@@ -42,7 +42,7 @@ if (!$isAdmin) {
 }
 
 $rows = db_rows(
-    'SELECT g.created_at, g.filename, g.prompt, g.aspect_class, g.quality, g.private, g.ref_image_count, g.batch_id, g.image_number, u.username AS user
+    'SELECT g.created_at, g.filename, g.prompt, g.aspect_class, g.quality, g.private, g.ref_image_count, g.batch_id, g.image_number, g.is_main_image, u.username AS user
      FROM generations g
      JOIN users u ON u.id = g.user_id
      WHERE ' . $where . '
@@ -65,6 +65,7 @@ foreach ($rows as $r) {
         'ref_image_count' => (string)($r['ref_image_count']),
         'batchId' => $r['batch_id'] ?? '',
         'imageNumber' => (string)($r['image_number'] ?? 1),
+        'isMainImage' => (string)($r['is_main_image'] ?? 0),
         'archived' => '1',
         'refImages' => list_ref_images_arch($r['batch_id'] ?? '', $r['user'], $currentUser, $isAdmin)
     ];

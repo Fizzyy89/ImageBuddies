@@ -253,8 +253,12 @@ async function openMyImagesModal() {
     // Render generations list
     myGenerationsList.innerHTML = '';
     for (const [key, items] of byBatch.entries()) {
-        const first = items[0];
-        const isBatch = (first.batchId && items.length > 1);
+        const sortedItems = [...items].sort((a, b) => parseInt(a.imageNumber || '0', 10) - parseInt(b.imageNumber || '0', 10));
+        const mainItem = sortedItems.find(item => item.isMainImage === '1') || sortedItems[0];
+        if (!mainItem) continue;
+        const isBatch = Boolean(mainItem.batchId && sortedItems.length > 1);
+        const mainFilename = mainItem.file.split('/').pop();
+
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between p-4 hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-slate-800/50 dark:hover:to-slate-800/30 transition-all duration-200 group cursor-pointer';
 
@@ -263,23 +267,23 @@ async function openMyImagesModal() {
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.className = 'myGenSel w-4 h-4 text-indigo-600 border-gray-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-all cursor-pointer';
-        cb.dataset.batchId = first.batchId || '';
-        cb.dataset.filename = first.batchId ? '' : first.file.split('/').pop();
+        cb.dataset.batchId = mainItem.batchId || '';
+        cb.dataset.filename = isBatch ? '' : mainFilename;
 
         const thumb = document.createElement('img');
-        thumb.src = 'images/thumbs/' + first.file.split('/').pop();
+        thumb.src = 'images/thumbs/' + mainFilename;
         thumb.className = 'myGenThumb w-14 h-14 object-cover rounded-xl shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-slate-700';
         
         const info = document.createElement('div');
         info.className = 'flex flex-col min-w-0 flex-1';
         const line1 = document.createElement('div');
         line1.className = 'text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[40vw] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors';
-        line1.textContent = (first.prompt || '').slice(0, 120) || (first.file.split('/').pop());
+        line1.textContent = (mainItem.prompt || '').slice(0, 120) || mainFilename;
         const line2 = document.createElement('div');
         line2.className = 'text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1';
         // Privacy
         const privacy = document.createElement('span');
-        const isPrivate = first.private === '1';
+        const isPrivate = mainItem.private === '1';
         privacy.className = `inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-sm ${
             isPrivate 
                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' 
@@ -287,12 +291,12 @@ async function openMyImagesModal() {
         }`;
         privacy.innerHTML = `
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                ${isPrivate 
+            ${isPrivate 
                     ? '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>' 
                     : '<path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
                 }
             </svg>
-            ${first.private === '1' ? translate('privacy.private') : translate('privacy.public')}
+            ${isPrivate ? translate('privacy.private') : translate('privacy.public')}
         `;
         // Batch size
         const batchInfo = document.createElement('span');
@@ -301,12 +305,12 @@ async function openMyImagesModal() {
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
-            ${isBatch ? `${items.length} ${translate('unit.images.short')}` : `1 ${translate('unit.image.short')}`}
+            ${isBatch ? `${sortedItems.length} ${translate('unit.images.short')}` : `1 ${translate('unit.image.short')}`}
         `;
         // Quality
         const quality = document.createElement('span');
         const qualityKeyMap = { 'low': 'settings.quality.low', 'medium': 'settings.quality.medium', 'high': 'settings.quality.high', 'gemini': 'settings.quality.gemini' };
-        const qLabel = translate(qualityKeyMap[first.quality] || first.quality || '');
+        const qLabel = translate(qualityKeyMap[mainItem.quality] || mainItem.quality || '');
         const qualityColorMap = {
             [translate('settings.quality.low')]: 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
             [translate('settings.quality.medium')]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400',
@@ -323,7 +327,7 @@ async function openMyImagesModal() {
             ${qLabel}
         `;
         // Aspect Ratio: nur aspect_class
-        let aspect = first.aspect_class || '';
+        let aspect = mainItem.aspect_class || '';
         if (typeof aspect === 'string' && aspect.includes('x')) {
             const [w, h] = aspect.toLowerCase().split('x');
             const gcd = (a,b)=>b?gcd(b,a%b):a; const g=gcd(parseInt(w)||0, parseInt(h)||0) || 1;
@@ -350,7 +354,7 @@ async function openMyImagesModal() {
 
         const right = document.createElement('div');
         right.className = 'flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400';
-        const tsStr = formatTimestamp(first.timestamp);
+        const tsStr = formatTimestamp(mainItem.timestamp);
         right.innerHTML = `
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -374,7 +378,11 @@ async function openMyImagesModal() {
         thumb.addEventListener('click', (e) => {
             e.stopPropagation();
             try {
-                window.dispatchEvent(new CustomEvent('showBatchImage', { detail: { image: first } }));
+                const payload = { ...mainItem };
+                if (isBatch) {
+                    payload.batchImages = sortedItems;
+                }
+                window.dispatchEvent(new CustomEvent('showBatchImage', { detail: { image: payload } }));
             } catch (_) {}
         });
     }
@@ -558,7 +566,7 @@ async function openMyImagesModal() {
 
             // Display only batch main images (imageNumber === '1') and singletons
             const displayed = archived.filter(obj => {
-                if (obj.batchId && obj.batchId !== '' && String(obj.imageNumber) !== '1') return false;
+                if (obj.batchId && obj.batchId !== '' && obj.isMainImage !== '1') return false;
                 return true;
             });
 
@@ -582,7 +590,7 @@ async function openMyImagesModal() {
                 img.className = 'w-full h-full object-cover rounded-2xl';
 
                 // Batch size indicator
-                if (fileObj.batchId && String(fileObj.imageNumber) === '1') {
+                if (fileObj.batchId && fileObj.isMainImage === '1') {
                     const batchSize = archived.filter(f => f.batchId === fileObj.batchId).length;
                     if (batchSize > 1) {
                         const batchIndicator = document.createElement('div');

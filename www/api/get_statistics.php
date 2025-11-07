@@ -37,7 +37,7 @@ $stats = [
 ];
 
 // Totals (in CSV, deleted images were omitted; DB may retain rows — we count all rows here)
-$rows = db_rows('SELECT g.created_at, g.aspect_class, g.quality, g.ref_image_count, g.batch_id, g.image_number, g.cost_total_cents, u.username FROM generations g JOIN users u ON u.id=g.user_id');
+$rows = db_rows('SELECT g.created_at, g.aspect_class, g.quality, g.ref_image_count, g.batch_id, g.image_number, g.is_main_image, g.cost_total_cents, u.username FROM generations g JOIN users u ON u.id=g.user_id');
 
 $firstDate = null;
 $lastDate = null;
@@ -63,9 +63,10 @@ foreach ($rows as $r) {
     $user = $r['username'];
     $batchId = $r['batch_id'] ?? '';
     $imageNumber = intval($r['image_number'] ?? 1);
+    $isMain = isset($r['is_main_image']) ? intval($r['is_main_image']) === 1 : ($imageNumber === 1);
     $totalImageCost = intval($r['cost_total_cents']);
 
-    if ($imageNumber === 1) {
+    if ($isMain) {
         if ($batchId === '') {
             $stats['batchStats']['single']++;
         } else {

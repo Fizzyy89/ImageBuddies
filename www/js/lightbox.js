@@ -98,28 +98,41 @@ export function initLightbox({
             thumbBarRow.appendChild(batchLabel);
             batchImages.sort((a, b) => parseInt(a.imageNumber) - parseInt(b.imageNumber));
             batchImages.forEach((img, idx) => {
+                const thumbWrapper = document.createElement('div');
+                thumbWrapper.className = 'relative cursor-pointer';
                 const thumb = document.createElement('img');
                 thumb.src = img.file;
                 thumb.alt = translate('lightbox.batchImageAlt.prefix') + (idx + 1);
-                thumb.className = 'w-14 h-14 object-cover rounded-lg border-2 transition cursor-pointer';
-                if (String(img.imageNumber) === String(imgObj.imageNumber)) {
+                thumb.className = 'w-14 h-14 object-cover rounded-lg border-2 transition';
+                const isCurrent = img.file === imgObj.file;
+                if (isCurrent) {
                     thumb.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-300');
                 } else {
                     thumb.classList.add('border-gray-200', 'dark:border-slate-700', 'opacity-80', 'hover:opacity-100');
                 }
-                thumb.onclick = () => {
+                thumbWrapper.appendChild(thumb);
+                if (String(img.isMainImage) === '1') {
+                    const mainMarker = document.createElement('div');
+                    mainMarker.className = 'absolute -top-1.5 -right-1.5 flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 text-white shadow-lg ring-2 ring-white/80 dark:ring-slate-900/70';
+                    mainMarker.innerHTML = `
+                        <svg class="w-3.5 h-3.5 drop-shadow-sm" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                            <path d="M10 2.5l2.18 4.417 4.875.71-3.528 3.436.833 4.86L10 13.917 5.64 15.923l.833-4.86-3.528-3.436 4.875-.71L10 2.5z"></path>
+                        </svg>
+                    `;
+                    thumbWrapper.appendChild(mainMarker);
+                }
+                thumbWrapper.addEventListener('click', () => {
                     const galleryIdx = galleryImages.findIndex(g => g.file === img.file);
                     if (galleryIdx !== -1) {
                         openGalleryLightbox(galleryIdx);
                     } else {
-                        // Preserve the batch image list AND archived status when navigating within an archived batch
                         const nextImg = (tempDirectImage && Array.isArray(tempDirectImage.batchImages))
                             ? { ...img, batchImages: tempDirectImage.batchImages, archived: tempDirectImage.archived || imgObj.archived }
                             : { ...img, archived: imgObj.archived };
                         showBatchImageDirect(nextImg);
                     }
-                };
-                thumbBarRow.appendChild(thumb);
+                });
+                thumbBarRow.appendChild(thumbWrapper);
             });
             if (labelContainer && labelContainer.parentNode) {
                 const separator = document.createElement('div');
@@ -133,7 +146,7 @@ export function initLightbox({
 
         // --- Reference images row (if present, hidden by default) ---
         const owner = imgObj.user || '';
-        const currentGalleryMain = galleryImages.find(g => g.batchId === imgObj.batchId && String(g.imageNumber) === '1');
+        const currentGalleryMain = galleryImages.find(g => g.batchId === imgObj.batchId && g.isMainImage === '1');
         const refImages = currentGalleryMain && currentGalleryMain.refImages ? currentGalleryMain.refImages : (imgObj.refImages || []);
         if (Array.isArray(refImages) && refImages.length > 0) {
             const refsRow = document.createElement('div');
@@ -172,7 +185,8 @@ export function initLightbox({
         if (lightboxPrompt && lightboxPrompt.parentNode) {
             lightboxPrompt.parentNode.querySelectorAll('.lightbox-make-main-btn').forEach(el => el.remove());
         }
-        const isNotMain = String(imgObj.imageNumber) !== '1';
+        const isMain = String(imgObj.isMainImage) === '1';
+        const isNotMain = !isMain;
         const isOwner = imgObj.user && userName.textContent && imgObj.user === userName.textContent.trim();
         if (isNotMain && (isOwner || isAdmin)) {
             const makeMainBtn = document.createElement('button');
@@ -189,12 +203,13 @@ export function initLightbox({
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             batchId: imgObj.batchId,
-                            imageNumber: imgObj.imageNumber
+                            imageNumber: imgObj.imageNumber,
+                            filename: imgObj.file ? imgObj.file.split('/').pop() : null
                         })
                     });
                     if (!resp.ok) throw new Error('Fehler beim Tauschen');
                     await loadImageGrid();
-                    const newMain = galleryImages.findIndex(img => img.batchId === imgObj.batchId && String(img.imageNumber) === '1');
+                    const newMain = galleryImages.findIndex(img => img.batchId === imgObj.batchId && img.isMainImage === '1');
                     if (newMain !== -1) {
                         openGalleryLightbox(newMain);
                     } else {
@@ -204,7 +219,7 @@ export function initLightbox({
                                 const archResp = await fetch('api/list_archived.php');
                                 const arch = await archResp.json();
                                 const updatedBatch = arch.filter(a => a.batchId === imgObj.batchId).sort((a,b)=>parseInt(a.imageNumber)-parseInt(b.imageNumber));
-                                const newMainObj = updatedBatch.find(x => String(x.imageNumber) === '1') || updatedBatch[0];
+                                const newMainObj = updatedBatch.find(x => x.isMainImage === '1') || updatedBatch[0];
                                 if (newMainObj) {
                                     showBatchImageDirect({ ...newMainObj, batchImages: updatedBatch });
                                 }
@@ -392,8 +407,8 @@ export function initLightbox({
         }
         let idx = currentGalleryIndex;
         if (tempDirectImage) {
-            // If the image is not in the gallery, find the batch main image (imageNumber === '1') in galleryImages
-            const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && String(g.imageNumber) === '1');
+            // If the image is not in the gallery, find the batch main image in galleryImages
+            const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && g.isMainImage === '1');
             idx = batchMain ? galleryImages.findIndex(g => g.file === batchMain.file) : -1;
         }
         lightboxPrev.disabled = idx <= 0;
@@ -406,8 +421,8 @@ export function initLightbox({
             e.stopPropagation();
             let idx = currentGalleryIndex;
             if (tempDirectImage) {
-                // If the image is not in the gallery, find the batch main image (imageNumber === '1') in galleryImages
-                const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && String(g.imageNumber) === '1');
+                // If the image is not in the gallery, find the batch main image in galleryImages
+                const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && g.isMainImage === '1');
                 idx = batchMain ? galleryImages.findIndex(g => g.file === batchMain.file) : -1;
             }
             if (idx > 0) openGalleryLightbox(idx - 1);
@@ -418,8 +433,8 @@ export function initLightbox({
             e.stopPropagation();
             let idx = currentGalleryIndex;
             if (tempDirectImage) {
-                // If the image is not in the gallery, find the batch main image (imageNumber === '1') in galleryImages
-                const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && String(g.imageNumber) === '1');
+                // If the image is not in the gallery, find the batch main image in galleryImages
+                const batchMain = galleryImages.find(g => g.batchId === tempDirectImage.batchId && g.isMainImage === '1');
                 idx = batchMain ? galleryImages.findIndex(g => g.file === batchMain.file) : -1;
             }
             if (idx < galleryImages.length - 1) openGalleryLightbox(idx + 1);
@@ -890,8 +905,7 @@ export function initLightbox({
                 // After reload: reopen lightbox if applicable
                 let reopenIdx = -1;
                 if (currentImage.batchId) {
-                    // Find the image with the same batchId and imageNumber
-                    reopenIdx = galleryImages.findIndex(img => img.batchId === currentImage.batchId && String(img.imageNumber) === String(currentImage.imageNumber));
+                    reopenIdx = galleryImages.findIndex(img => img.batchId === currentImage.batchId && img.file === currentImage.file);
                 } else {
                     reopenIdx = galleryImages.findIndex(img => img.file === currentImage.file);
                 }

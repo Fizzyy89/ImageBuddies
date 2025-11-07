@@ -137,7 +137,7 @@ export async function loadImageGrid({
         allImages.length = 0;
         allImages.push(...filteredFiles);
         const displayedFiles = filteredFiles.filter(fileObj => {
-            if (fileObj.batchId && fileObj.batchId !== '' && fileObj.imageNumber !== '1') {
+            if (fileObj.batchId && fileObj.batchId !== '' && fileObj.isMainImage !== '1') {
                 return false;
             }
             return true;
@@ -163,7 +163,7 @@ export async function loadImageGrid({
             img.style.cssText = 'image-rendering: auto; display: block; background: #f3f4f6;';
 
             // Add batch indicator if this is part of a batch
-            if (fileObj.batchId && fileObj.imageNumber === '1') {
+            if (fileObj.batchId && fileObj.isMainImage === '1') {
                 const batchSize = filteredFiles.filter(f => f.batchId === fileObj.batchId).length;
                 if (batchSize > 1) {
                     const batchIndicator = document.createElement('div');

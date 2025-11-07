@@ -67,3 +67,28 @@ function db_table_exists($name) {
 }
 
 
+function db_column_exists($table, $column) {
+    static $cache = [];
+    $tableKey = strtolower((string)$table);
+    $columnKey = strtolower((string)$column);
+    $cacheKey = $tableKey . '.' . $columnKey;
+    if (array_key_exists($cacheKey, $cache)) {
+        return $cache[$cacheKey];
+    }
+
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $tableKey)) {
+        return false;
+    }
+
+    $rows = db_rows('PRAGMA table_info(' . $tableKey . ')');
+    $exists = false;
+    foreach ($rows as $row) {
+        if (isset($row['name']) && strtolower((string)$row['name']) === $columnKey) {
+            $exists = true;
+            break;
+        }
+    }
+
+    $cache[$cacheKey] = $exists;
+    return $exists;
+}

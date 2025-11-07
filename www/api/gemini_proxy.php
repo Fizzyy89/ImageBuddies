@@ -48,50 +48,37 @@ if ($endpoint === 'edit') {
     
     $prompt = trim($_POST['prompt']);
     
-    // Check if at least one image was uploaded
-    if (!isset($_FILES['image']) || empty($_FILES['image']['tmp_name'])) {
-        http_response_code(400);
-        echo json_encode(['error_key' => 'error.proxy.missingImage']);
-        exit;
-    }
-    
-    // Process uploaded image(s)
+    // Process uploaded image(s) if present
     $images = [];
-    if (is_array($_FILES['image']['tmp_name'])) {
-        // Multiple images
-        foreach ($_FILES['image']['tmp_name'] as $idx => $tmpName) {
-            if (!empty($tmpName) && $_FILES['image']['error'][$idx] === UPLOAD_ERR_OK) {
-                $imageData = file_get_contents($tmpName);
+    if (isset($_FILES['image'])) {
+        $tmp = $_FILES['image']['tmp_name'];
+        if (is_array($tmp)) {
+            foreach ($tmp as $idx => $tmpName) {
+                if (!empty($tmpName) && $_FILES['image']['error'][$idx] === UPLOAD_ERR_OK) {
+                    $imageData = file_get_contents($tmpName);
+                    if ($imageData !== false) {
+                        $images[] = [
+                            'data' => base64_encode($imageData),
+                            'mime_type' => $_FILES['image']['type'][$idx] ?? 'image/png'
+                        ];
+                    }
+                }
+            }
+        } else {
+            if (!empty($tmp) && ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $imageData = file_get_contents($tmp);
                 if ($imageData !== false) {
                     $images[] = [
                         'data' => base64_encode($imageData),
-                        'mime_type' => $_FILES['image']['type'][$idx]
+                        'mime_type' => $_FILES['image']['type'] ?? 'image/png'
                     ];
                 }
             }
         }
-    } else {
-        // Single image
-        if ($_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $imageData = file_get_contents($_FILES['image']['tmp_name']);
-            if ($imageData !== false) {
-                $images[] = [
-                    'data' => base64_encode($imageData),
-                    'mime_type' => $_FILES['image']['type']
-                ];
-            }
+
+        if (count($images) > 3) {
+            $images = array_slice($images, 0, 3);
         }
-    }
-    
-    if (empty($images)) {
-        http_response_code(400);
-        echo json_encode(['error_key' => 'error.proxy.imageReadFailed']);
-        exit;
-    }
-    
-    // Limit to max 3 images
-    if (count($images) > 3) {
-        $images = array_slice($images, 0, 3);
     }
     
     // Build API request
@@ -99,7 +86,7 @@ if ($endpoint === 'edit') {
         ['text' => $prompt]
     ];
     
-    // Attach all images
+    // Attach all images (optional)
     foreach ($images as $image) {
         $parts[] = [
             'inlineData' => [

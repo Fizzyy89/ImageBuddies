@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced button labels for improved clarity and user experience
 
  ### Changed
+- Gemini mode no longer requires the use of an input image. It can now generate basic prompts as well.
+- Changed how batch main images work, they now have a dedicated db field. If you need to migrate an older instance, use `/api/migrate_main_image_flag.php`.
 - Simplified the Surprise Me prompt generator with curated building blocks and lighter templates to produce shorter, more coherent inspirations.
 - Removed streaming for OpenAI batch generations, since it results in too many errors and faulty jobs
   

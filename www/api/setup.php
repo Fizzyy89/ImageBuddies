@@ -100,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     width INTEGER,
                     height INTEGER,
                     aspect_class TEXT,
+                    is_main_image INTEGER NOT NULL DEFAULT 0,
                     deleted INTEGER NOT NULL DEFAULT 0,
                     archived INTEGER NOT NULL DEFAULT 0,
                     cost_image_cents INTEGER NOT NULL DEFAULT 0,
@@ -116,6 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_user ON generations (user_id, created_at DESC)');
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_batch ON generations (batch_id)');
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_archived ON generations (archived, created_at DESC)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_main_flag ON generations (is_main_image)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_batch_main_flag ON generations (batch_id, is_main_image)');
+            db()->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_generations_batch_main_unique ON generations (batch_id) WHERE batch_id IS NOT NULL AND is_main_image = 1');
         });
 
     // Load the selected locale file for default customization texts
@@ -175,6 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Seed pricing defaults
             imb_pricing_save(imb_pricing_defaults());
+
+            db_exec('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', [
+                'migration.is_main_image',
+                'done'
+            ]);
 
             // Store OpenAI key encrypted in DB (optional, may be empty)
             $apiKeyTrim = isset($data['apiKey']) ? trim($data['apiKey']) : '';

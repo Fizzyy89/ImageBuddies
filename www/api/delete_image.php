@@ -44,7 +44,7 @@ if (isset($data['batchId'])) {
         if (file_exists($thumbPath)) @unlink($thumbPath);
         $deletedFiles[] = $basename;
     }
-    db_exec('UPDATE generations SET deleted = 1 WHERE batch_id = ?', [$batchId]);
+    db_exec('UPDATE generations SET deleted = 1, is_main_image = 0 WHERE batch_id = ?', [$batchId]);
     // Delete batch reference folder
     $safeBatch = preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
     $refsDir = IMB_IMAGE_DIR . '/refs/' . $safeBatch;
@@ -77,14 +77,19 @@ if (!preg_match('/^image_[0-9T\-]+\.png$/', $basename)) {
     exit;
 }
 
+// Fetch metadata for permission and follow-up updates
+$row = db_row('SELECT g.id, g.batch_id, g.is_main_image, u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.filename = ?', [$basename]);
+if ($row === null) {
+    http_response_code(404);
+    echo json_encode(['error_key' => 'error.deleteImage.logNotFound']);
+    exit;
+}
+
 // Permission check: users may delete own images; admins may delete all
-if (!$isAdmin) {
-    $row = db_row('SELECT u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.filename = ?', [$basename]);
-    if ($row === null || $row['owner'] !== $currentUser) {
-        http_response_code(403);
-        echo json_encode(['error_key' => 'error.deleteImage.noPermission']);
-        exit;
-    }
+if (!$isAdmin && $row['owner'] !== $currentUser) {
+    http_response_code(403);
+    echo json_encode(['error_key' => 'error.deleteImage.noPermission']);
+    exit;
 }
 
 // Delete image files
@@ -110,8 +115,19 @@ if (!$thumbOk) {
     // Not a hard error, but keep note
 }
 
-// Mark as deleted in DB
-db_exec('UPDATE generations SET deleted = 1 WHERE filename = ?', [$basename]);
+// Mark as deleted in DB and update main image state
+db_tx(function () use ($basename, $row) {
+    db_exec('UPDATE generations SET deleted = 1, is_main_image = 0 WHERE filename = ?', [$basename]);
+    $batchId = isset($row['batch_id']) ? trim((string)$row['batch_id']) : '';
+    if ($batchId !== '' && isset($row['is_main_image']) && (int)$row['is_main_image'] === 1) {
+        $newMain = db_row('SELECT id FROM generations WHERE batch_id = ? AND deleted = 0 ORDER BY image_number ASC, created_at ASC LIMIT 1', [$batchId]);
+        if ($newMain !== null) {
+            db_exec('UPDATE generations SET is_main_image = 1 WHERE id = ?', [$newMain['id']]);
+        }
+    } elseif ($batchId === '') {
+        // nothing to do for standalone images
+    }
+});
 
 echo json_encode(['success' => true]);
 ?> 

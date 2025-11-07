@@ -33,12 +33,6 @@ export async function generateImage({
         return;
     }
     
-    // Gemini requires at least one input image
-    if (currentMode === 'gemini' && uploadedFiles.length === 0) {
-        alert(translate('gemini.imageRequired'));
-        return;
-    }
-
     // Update button state
     if (generateIcon) generateIcon.classList.add('hidden');
     if (generateSpinner) generateSpinner.classList.remove('hidden');

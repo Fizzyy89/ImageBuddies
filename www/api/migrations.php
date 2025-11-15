@@ -15,7 +15,54 @@ if (!isset($_SESSION['user']) || !isset($_SESSION['role']) || $_SESSION['role'] 
 
 require_once dirname(__DIR__) . '/../src/bootstrap.php';
 require_once IMB_SRC_DIR . '/db.php';
-require_once IMB_SRC_DIR . '/migrations.php';
+
+function ensure_users_table_supports_superuser(): void
+{
+    $row = db_row("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'");
+    if (!$row) {
+        return;
+    }
+
+    $createSql = (string)($row['sql'] ?? '');
+    if (stripos($createSql, 'superuser') !== false) {
+        return;
+    }
+
+    $pdo = db();
+    $pdo->exec('PRAGMA foreign_keys = OFF');
+
+    try {
+        db_tx(function () {
+            db()->exec(
+                'CREATE TABLE users_migrated (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN (\'admin\', \'superuser\', \'user\')),
+                    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+                )'
+            );
+
+            db()->exec(
+                'INSERT INTO users_migrated (id, username, password_hash, role, created_at)
+                 SELECT id,
+                        username,
+                        password_hash,
+                        CASE
+                            WHEN role IN (\'admin\', \'superuser\', \'user\') THEN role
+                            ELSE \'user\'
+                        END,
+                        created_at
+                 FROM users'
+            );
+
+            db()->exec('DROP TABLE users');
+            db()->exec('ALTER TABLE users_migrated RENAME TO users');
+        });
+    } finally {
+        $pdo->exec('PRAGMA foreign_keys = ON');
+    }
+}
 
 $dryRun = isset($_GET['dry_run']) && $_GET['dry_run'] === '1';
 $action = $_GET['action'] ?? '';

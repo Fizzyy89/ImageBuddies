@@ -23,18 +23,24 @@ if ($action === 'login') {
         exit;
     }
     $_SESSION['user'] = $row['username'];
-    $_SESSION['role'] = $row['role'];
-    echo json_encode(['success' => true, 'role' => $row['role']]);
+    $_SESSION['role'] = strtolower($row['role']);
+    echo json_encode([
+        'success' => true,
+        'role' => $_SESSION['role'],
+        'can_generate_video' => in_array($_SESSION['role'], ['admin', 'superuser'], true)
+    ]);
     exit;
 } elseif ($action === 'logout') {
     session_destroy();
     echo json_encode(['success' => true]);
     exit;
 } elseif ($action === 'status') {
+    $role = isset($_SESSION['role']) ? strtolower((string)$_SESSION['role']) : null;
     echo json_encode([
         'logged_in' => isset($_SESSION['user']), 
         'user' => $_SESSION['user'] ?? null,
-        'role' => $_SESSION['role'] ?? null
+        'role' => $role,
+        'can_generate_video' => in_array($role, ['admin', 'superuser'], true)
     ]);
     exit;
 } else {

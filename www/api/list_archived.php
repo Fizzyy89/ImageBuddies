@@ -21,6 +21,30 @@ function sanitize_batch_id($batchId) {
 function list_ref_images_arch($batchId, $owner, $currentUser, $isAdmin) {
     if (!$batchId || (!$isAdmin && $owner !== $currentUser)) return [];
     $safeBatch = sanitize_batch_id($batchId);
+    
+    // Try new DB-based system first
+    $refs = db_rows(
+        'SELECT ri.file_path, ri.thumb_path 
+         FROM batch_references br
+         JOIN reference_images ri ON ri.id = br.reference_image_id
+         WHERE br.batch_id = ?
+         ORDER BY br.position ASC',
+        [$safeBatch]
+    );
+    
+    if (!empty($refs)) {
+        // DB system is active, use it
+        $out = [];
+        foreach ($refs as $ref) {
+            $out[] = [
+                'src' => $ref['file_path'],
+                'thumb' => $ref['thumb_path']
+            ];
+        }
+        return $out;
+    }
+    
+    // Fallback to old filesystem-based system for backwards compatibility
     $dir = IMB_IMAGE_DIR . '/refs/' . $safeBatch;
     if (!is_dir($dir)) return [];
     $paths = glob($dir . '/*');
@@ -28,25 +52,39 @@ function list_ref_images_arch($batchId, $owner, $currentUser, $isAdmin) {
     $out = [];
     foreach ($paths as $p) {
         if (is_file($p)) {
-            $out[] = 'images/refs/' . $safeBatch . '/' . basename($p);
+            $basename = basename($p);
+            $refPath = 'images/refs/' . $safeBatch . '/' . $basename;
+            $thumbPath = 'images/refs/thumbs/' . $safeBatch . '/' . $basename;
+            $thumbFullPath = IMB_IMAGE_DIR . '/refs/thumbs/' . $safeBatch . '/' . $basename;
+            
+            // Use thumbnail if available, otherwise use original
+            $displayPath = is_file($thumbFullPath) ? $thumbPath : $refPath;
+            
+            $out[] = [
+                'src' => $refPath,
+                'thumb' => $displayPath
+            ];
         }
     }
     return $out;
 }
 
 $params = [];
-$where = 'g.deleted = 0 AND g.archived = 1';
+$where = 'g.deleted = 0 AND b.archived = 1';
 if (!$isAdmin) {
     $where .= ' AND u.username = ?';
     $params[] = $currentUser;
 }
 
 $rows = db_rows(
-    'SELECT g.created_at, g.filename, g.prompt, g.aspect_class, g.quality, g.private, g.ref_image_count, g.batch_id, g.image_number, g.is_main_image, u.username AS user
+    'SELECT b.batch_id, b.prompt, b.quality, b.aspect_class, b.mode, b.private, b.archived, b.created_at, b.cost_total_cents,
+            g.id, g.filename, g.image_number, g.is_main_image, g.width, g.height, g.deleted,
+            u.username AS user
      FROM generations g
-     JOIN users u ON u.id = g.user_id
+     JOIN batches b ON b.batch_id = g.batch_id
+     JOIN users u ON u.id = b.user_id
      WHERE ' . $where . '
-     ORDER BY g.created_at DESC, g.id DESC',
+     ORDER BY b.created_at DESC, g.id DESC',
     $params
 );
 
@@ -54,6 +92,11 @@ $result = [];
 foreach ($rows as $r) {
     $filePath = IMB_IMAGE_DIR . '/' . $r['filename'];
     if (!is_file($filePath)) continue;
+    
+    // Count ref images for this batch
+    $refCount = db_row('SELECT COUNT(*) as cnt FROM batch_references WHERE batch_id = ?', [$r['batch_id']]);
+    $refImageCount = $refCount ? $refCount['cnt'] : 0;
+    
     $result[] = [
         'file' => 'images/' . $r['filename'],
         'timestamp' => $r['created_at'],
@@ -62,7 +105,7 @@ foreach ($rows as $r) {
         'aspect_class' => $r['aspect_class'],
         'quality' => $r['quality'],
         'private' => (string)($r['private'] ? '1' : '0'),
-        'ref_image_count' => (string)($r['ref_image_count']),
+        'ref_image_count' => (string)$refImageCount,
         'batchId' => $r['batch_id'] ?? '',
         'imageNumber' => (string)($r['image_number'] ?? 1),
         'isMainImage' => (string)($r['is_main_image'] ?? 0),

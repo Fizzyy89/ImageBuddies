@@ -114,6 +114,44 @@ if ($endpoint === 'generations') {
             ['role' => 'user', 'content' => $data['prompt']]
         ],
     ]);
+} elseif ($endpoint === 'prompt_helper') {
+    $isStream = true;
+    $url = 'https://api.openai.com/v1/chat/completions';
+    $headers = [
+        'Authorization: Bearer ' . $OPENAI_KEY,
+        'Content-Type: application/json'
+    ];
+    $data = json_decode(file_get_contents('php://input'), true);
+    if (!isset($data['userInput'])) {
+        http_response_code(400);
+        echo json_encode(['error_key' => 'error.proxy.missingPrompt']);
+        exit;
+    }
+    
+    $userInput = $data['userInput'];
+    $preferredStyle = $data['preferredStyle'] ?? '';
+    $modifiers = $data['modifiers'] ?? [];
+    
+    // Build enhanced user input with style and modifiers
+    $enhancedInput = $userInput;
+    if (!empty($preferredStyle)) {
+        $enhancedInput .= "\n\nThe user chose this style: " . $preferredStyle;
+    }
+    if (!empty($modifiers)) {
+        $enhancedInput .= "\nThe user chose these modifiers: " . implode(', ', $modifiers);
+    }
+    
+    $systemPrompt = "You are a professional prompt engineer specialized in creating high-quality prompts for the image generation model 'nano banana'.\n\nYour goal: Given a user's description, generate the most effective, detailed, and well-structured prompt for nano banana, using its internal prompt style guidelines.\n\nFollow these strict rules:\n\n1. TASK:\nAnalyze the user's text, infer their visual intent and context, then output a single, optimized English prompt string suitable for nano banana.\n\n2. CATEGORY SELECTION:\nDetermine the most fitting type of image from the following refined list:\n- Photorealistic Scene (real-world look, detailed lighting, natural textures)\n- Cinematic Composition (movie stills, dramatic atmosphere, storytelling lighting)\n- Portrait / Character Concept (detailed depiction of one or few characters)\n- Stylized Illustration (artistic, hand-drawn or painted look)\n- Anime / Cartoon Style (manga, cel-shading, anime character rendering)\n- Minimalist or Flat Design (clean, simple, vector-like composition)\n- Product Photography / Commercial Mockup (studio lighting, realistic object focus)\n- Sticker / Emblem / Badge (clear outlines, isolated on transparent or white background)\n- Logo / Branding Design (text + symbol composition, graphic design aesthetics)\n- Comic Panel / Sequential Art (narrative composition, comic layout, speech bubbles)\n- Architectural Visualization (buildings, interiors, perspective, materials)\n- Fantasy / Sci-Fi Concept Art (imaginative worlds, vehicles, creatures, atmospheric mood)\n- Image Editing / Composite / Style Transfer (modify or merge given visuals)\n\n3. PROMPT STRUCTURE:\nAlways output using this exact format:\n```\nCategory: [chosen category]\nPrompt (EN):\n\"[final optimized prompt text]\"\nOptional note:\n[short advice or idea for variation, e.g., lighting, mood, camera angle]\n```\n\n4. LANGUAGE:\nAlways write the final prompt in fluent English.\n\n5. PROMPT QUALITY GUIDELINES:\n- Be specific and vivid.\n- Include visual details: lighting, materials, perspective, mood, color palette.\n- Prefer positive phrasing (describe what is visible, not what is excluded).\n- When possible, infer missing details from tone or purpose (e.g., professional, fantasy, cozy, horror).\n- Keep prompts under ~100 words for clarity.\n\n6. OUTPUT POLICY:\n- Never include code, JSON, or API syntax.\n- Never use markdown formatting except the exact template above.\n- Only output one final optimized prompt, no explanations.\n\n7. EXAMPLES:\n\nExample 1:\nCategory: Photorealistic Scene\nPrompt (EN):\n\"A hyperrealistic close-up of a cheeseburger on a rustic wooden table, melted cheese dripping over the edge, sunlight highlighting sesame seeds and juicy texture. 85mm macro lens, shallow depth of field, warm natural lighting.\"\nOptional note:\nAdd 'bokeh background' for stronger focus on the burger.\n\nExample 2:\nCategory: Character Concept\nPrompt (EN):\n\"A detailed fantasy character portrait of a young sorcerer wearing a dark blue cloak with glowing runes, holding a crystal orb. Dramatic rim lighting, cinematic color grading, sharp details in eyes and fabric texture.\"\nOptional note:\nTry 'misty background' for added mystery.\n\nExample 3:\nCategory: Sticker / Emblem / Badge\nPrompt (EN):\n\"Cute cartoon-style sticker of a sleepy sloth wearing a tiny party hat, isolated on white background, clean vector lines, simple pastel color palette, thick outlines.\"\nOptional note:\nAdd 'drop shadow' for more depth.\n\nExample 4:\nCategory: Logo / Branding Design\nPrompt (EN):\n\"Modern minimal logo for a coffee brand named 'Luna Brew', featuring a crescent moon integrated with a coffee cup silhouette, smooth sans-serif typography, clean negative space, black-and-gold color scheme.\"\nOptional note:\nUse 'flat vector style' for printing clarity.\n\nExample 5:\nCategory: Stylized Illustration\nPrompt (EN):\n\"Digital illustration of a fox reading a book under a glowing streetlight in autumn, painterly brush strokes, warm orange tones, cozy mood, high detail in fur and leaves.\"\nOptional note:\nAdd 'soft vignette' for atmosphere.\n\nExample 6:\nCategory: Fantasy / Sci-Fi Concept Art\nPrompt (EN):\n\"An enormous alien city built inside a glowing crystal canyon, neon light reflections on metal surfaces, aerial perspective, concept art style, high contrast, cinematic depth.\"\nOptional note:\nInclude 'rainy weather' for a Blade Runner-like tone.\n\n---\nThis system prompt is self-contained. Use it to always produce coherent, creative, and visually rich prompts for the 'nano banana' image model.";
+    
+    $body = json_encode([
+        'model' => 'gpt-4.1-mini',
+        'messages' => [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $enhancedInput]
+        ],
+        'stream' => true,
+        'temperature' => 0.7
+    ]);
 } else {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.proxy.invalidEndpoint']);

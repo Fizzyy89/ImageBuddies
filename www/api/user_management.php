@@ -31,6 +31,10 @@ switch ($action) {
         $username = $data['username'] ?? '';
         $password = $data['password'] ?? '';
         $role = $data['role'] ?? 'user';
+        $validRoles = ['user', 'superuser', 'admin'];
+        if (!in_array($role, $validRoles, true)) {
+            $role = 'user';
+        }
 
         if (empty($username) || empty($password)) {
             http_response_code(400);
@@ -94,6 +98,12 @@ switch ($action) {
         }
         
         if ($newRole !== null) {
+            $validRoles = ['user', 'superuser', 'admin'];
+            if (!in_array($newRole, $validRoles, true)) {
+                http_response_code(400);
+                echo json_encode(['error_key' => 'error.userManagement.invalidRole']);
+                exit;
+            }
             db_exec('UPDATE users SET role = ? WHERE username = ?', [
                 $newRole,
                 $username
@@ -126,10 +136,10 @@ switch ($action) {
             echo json_encode(['error_key' => 'error.userManagement.delete.cannotDeleteSelf']);
             exit;
         }
-        // Reassign generations to a dedicated 'archived' user before delete (to satisfy FK)
+        // Reassign batches to a dedicated 'archived' user before delete (to satisfy FK)
         $targetUserId = intval($row['id']);
-        $genCount = db_row('SELECT COUNT(*) AS c FROM generations WHERE user_id = ?', [$targetUserId]);
-        if (intval($genCount['c']) > 0) {
+        $batchCount = db_row('SELECT COUNT(*) AS c FROM batches WHERE user_id = ?', [$targetUserId]);
+        if (intval($batchCount['c']) > 0) {
             // Ensure 'archived' user exists
             $arch = db_row('SELECT id FROM users WHERE username = ?', ['archived']);
             if (!$arch) {
@@ -141,7 +151,7 @@ switch ($action) {
                 $arch = db_row('SELECT id FROM users WHERE username = ?', ['archived']);
             }
             $archivedId = intval($arch['id']);
-            db_exec('UPDATE generations SET user_id = ? WHERE user_id = ?', [$archivedId, $targetUserId]);
+            db_exec('UPDATE batches SET user_id = ? WHERE user_id = ?', [$archivedId, $targetUserId]);
         }
         db_exec('DELETE FROM users WHERE username = ?', [$username]);
         echo json_encode(['success' => true]);

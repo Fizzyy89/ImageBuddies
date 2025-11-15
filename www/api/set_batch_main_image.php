@@ -25,15 +25,31 @@ if (!$batchId || ($imageNumber === '' && $filenameInput === null)) {
 require_once dirname(__DIR__) . '/../src/bootstrap.php';
 require_once IMB_SRC_DIR . '/db.php';
 
+// Fetch batch owner from batches table
+$batchRow = db_row('SELECT b.user_id, u.username AS owner FROM batches b JOIN users u ON u.id = b.user_id WHERE b.batch_id = ?', [$batchId]);
+if (!$batchRow) {
+    http_response_code(404);
+    echo json_encode(['error_key' => 'error.batchMainImage.batchNotFound']);
+    exit;
+}
+$batchOwner = $batchRow['owner'];
+
 // Fetch batch images from DB
-$rows = db_rows('SELECT g.id, g.image_number, g.is_main_image, g.filename, u.username AS owner FROM generations g JOIN users u ON u.id=g.user_id WHERE g.deleted=0 AND g.batch_id = ?', [$batchId]);
+$rows = db_rows('SELECT g.id, g.image_number, g.is_main_image, g.filename FROM generations g WHERE g.deleted=0 AND g.batch_id = ?', [$batchId]);
 if (count($rows) < 2) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.batchMainImage.batchTooSmall']);
     exit;
 }
 
-// Find current main (image_number=1) and target
+// Permission check (do this early)
+if (!$isAdmin && $batchOwner !== $currentUser) {
+    http_response_code(403);
+    echo json_encode(['error_key' => 'error.batchMainImage.noPermission']);
+    exit;
+}
+
+// Find current main and target
 $currentMain = null;
 $target = null;
 foreach ($rows as $r) {
@@ -51,12 +67,6 @@ foreach ($rows as $r) {
 if (!$currentMain || !$target) {
     http_response_code(400);
     echo json_encode(['error_key' => 'error.batchMainImage.imageNotFound']);
-    exit;
-}
-// Permission check
-if (!$isAdmin && $currentMain['owner'] !== $currentUser) {
-    http_response_code(403);
-    echo json_encode(['error_key' => 'error.batchMainImage.noPermission']);
     exit;
 }
 

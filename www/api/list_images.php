@@ -14,15 +14,22 @@ function sanitize_batch_id($batchId) {
 function list_ref_images($batchId, $owner, $currentUser, $isAdmin) {
     if (!$batchId || (!$isAdmin && $owner !== $currentUser)) return [];
     $safeBatch = sanitize_batch_id($batchId);
-    $dir = IMB_IMAGE_DIR . '/refs/' . $safeBatch;
-    if (!is_dir($dir)) return [];
-    $paths = glob($dir . '/*');
-    sort($paths, SORT_NATURAL);
+    
+    $refs = db_rows(
+        'SELECT ri.file_path, ri.thumb_path 
+         FROM batch_references br
+         JOIN reference_images ri ON ri.id = br.reference_image_id
+         WHERE br.batch_id = ?
+         ORDER BY br.position ASC',
+        [$safeBatch]
+    );
+    
     $out = [];
-    foreach ($paths as $p) {
-        if (is_file($p)) {
-            $out[] = 'images/refs/' . $safeBatch . '/' . basename($p);
-        }
+    foreach ($refs as $ref) {
+        $out[] = [
+            'src' => $ref['file_path'],
+            'thumb' => $ref['thumb_path']
+        ];
     }
     return $out;
 }
@@ -41,25 +48,28 @@ if (!$isLoggedIn && (!isset($_SERVER['HTTP_X_VIEW_ONLY']) || !$viewOnlyAllowed))
     exit;
 }
 
-// Query visible images
+// Query visible images with batch data
 $params = [];
-$where = 'g.deleted = 0 AND g.archived = 0';
+$where = 'g.deleted = 0 AND b.archived = 0';
 if (!$isAdmin) {
     // Private images visible to owner only
     if ($isLoggedIn) {
-        $where .= ' AND (g.private = 0 OR u.username = ?)';
+        $where .= ' AND (b.private = 0 OR u.username = ?)';
         $params[] = $currentUser;
     } else {
-        $where .= ' AND g.private = 0';
+        $where .= ' AND b.private = 0';
     }
 }
 
 $rows = db_rows(
-    'SELECT g.created_at, g.filename, g.prompt, g.aspect_class, g.quality, g.private, g.ref_image_count, g.batch_id, g.image_number, g.is_main_image, u.username AS user
+    'SELECT b.batch_id, b.prompt, b.quality, b.aspect_class, b.mode, b.private, b.archived, b.created_at, b.cost_total_cents,
+            g.id, g.filename, g.image_number, g.is_main_image, g.width, g.height, g.deleted,
+            u.username AS user
      FROM generations g
-     JOIN users u ON u.id = g.user_id
+     JOIN batches b ON b.batch_id = g.batch_id
+     JOIN users u ON u.id = b.user_id
      WHERE ' . $where . '
-     ORDER BY g.created_at DESC, g.id DESC',
+     ORDER BY b.created_at DESC, g.id DESC',
     $params
 );
 
@@ -70,6 +80,11 @@ foreach ($rows as $r) {
         // File missing but row remains in DB; skip for display
         continue;
     }
+    
+    // Count ref images for this batch
+    $refCount = db_row('SELECT COUNT(*) as cnt FROM batch_references WHERE batch_id = ?', [$r['batch_id']]);
+    $refImageCount = $refCount ? $refCount['cnt'] : 0;
+    
     $result[] = [
         'file' => 'images/' . $r['filename'],
         'timestamp' => $r['created_at'],
@@ -78,7 +93,7 @@ foreach ($rows as $r) {
         'aspect_class' => $r['aspect_class'],
         'quality' => $r['quality'],
         'private' => (string)($r['private'] ? '1' : '0'),
-        'ref_image_count' => (string)($r['ref_image_count']),
+        'ref_image_count' => (string)$refImageCount,
         'batchId' => $r['batch_id'] ?? '',
         'imageNumber' => (string)($r['image_number'] ?? 1),
         'isMainImage' => (string)($r['is_main_image'] ?? 0),

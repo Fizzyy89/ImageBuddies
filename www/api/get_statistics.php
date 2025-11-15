@@ -36,8 +36,14 @@ $stats = [
     ]
 ];
 
-// Totals (in CSV, deleted images were omitted; DB may retain rows — we count all rows here)
-$rows = db_rows('SELECT g.created_at, g.aspect_class, g.quality, g.ref_image_count, g.batch_id, g.image_number, g.is_main_image, g.cost_total_cents, u.username FROM generations g JOIN users u ON u.id=g.user_id');
+// Totals - join generations with batches table for metadata
+$rows = db_rows('
+    SELECT b.created_at, b.aspect_class, b.quality, b.cost_ref_cents / 3 as ref_image_count, 
+           b.batch_id, g.image_number, g.is_main_image, b.cost_total_cents, u.username 
+    FROM generations g 
+    JOIN batches b ON b.batch_id = g.batch_id 
+    JOIN users u ON u.id = b.user_id
+');
 
 $firstDate = null;
 $lastDate = null;
@@ -88,30 +94,42 @@ foreach ($rows as $r) {
     if (!isset($stats['userDistribution'][$user])) $stats['userDistribution'][$user] = 0;
     $stats['userDistribution'][$user]++;
 
-    if (!isset($stats['costsPerUser'][$user])) $stats['costsPerUser'][$user] = 0;
-    $stats['costsPerUser'][$user] += $totalImageCost;
+    // Costs are per batch - only count once per batch (for main image)
+    if ($isMain) {
+        if (!isset($stats['costsPerUser'][$user])) $stats['costsPerUser'][$user] = 0;
+        $stats['costsPerUser'][$user] += $totalImageCost;
 
+        $dayKey = (strlen($date) >= 10) ? substr($date, 0, 10) : null;
+        if ($dayKey) {
+            if (!isset($stats['costsPerDay'][$dayKey])) $stats['costsPerDay'][$dayKey] = 0;
+            $stats['costsPerDay'][$dayKey] += $totalImageCost;
+        }
+
+        $monthKey = (strlen($date) >= 7) ? substr($date, 0, 7) : null;
+        if ($monthKey) {
+            if (!isset($stats['costsPerMonth'][$monthKey])) $stats['costsPerMonth'][$monthKey] = 0;
+            $stats['costsPerMonth'][$monthKey] += $totalImageCost;
+        }
+
+        if ($refCount > 0) {
+            $stats['referenceImageStats']['withRefs']++;
+            $stats['referenceImageStats']['totalRefs'] += $refCount;
+        } else {
+            $stats['referenceImageStats']['withoutRefs']++;
+        }
+    }
+
+    // Images per day/month count ALL images, not just main
     $dayKey = (strlen($date) >= 10) ? substr($date, 0, 10) : null;
     if ($dayKey) {
         if (!isset($stats['imagesPerDay'][$dayKey])) $stats['imagesPerDay'][$dayKey] = 0;
         $stats['imagesPerDay'][$dayKey]++;
-        if (!isset($stats['costsPerDay'][$dayKey])) $stats['costsPerDay'][$dayKey] = 0;
-        $stats['costsPerDay'][$dayKey] += $totalImageCost;
     }
 
     $monthKey = (strlen($date) >= 7) ? substr($date, 0, 7) : null;
     if ($monthKey) {
         if (!isset($stats['imagesPerMonth'][$monthKey])) $stats['imagesPerMonth'][$monthKey] = 0;
         $stats['imagesPerMonth'][$monthKey]++;
-        if (!isset($stats['costsPerMonth'][$monthKey])) $stats['costsPerMonth'][$monthKey] = 0;
-        $stats['costsPerMonth'][$monthKey] += $totalImageCost;
-    }
-
-    if ($refCount > 0) {
-        $stats['referenceImageStats']['withRefs']++;
-        $stats['referenceImageStats']['totalRefs'] += $refCount;
-    } else {
-        $stats['referenceImageStats']['withoutRefs']++;
     }
 }
 

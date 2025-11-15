@@ -387,16 +387,25 @@ async function openMyImagesModal() {
         });
     }
 
-    // Render reference images grid (from each batch refImages)
+    // Render reference images grid (from each batch refImages) - deduplicated
     myRefsGrid.innerHTML = '';
+    const refMap = new Map(); // Deduplizierung via Map (src als Key)
+    
     own.forEach(f => {
         if (Array.isArray(f.refImages)) {
-            f.refImages.forEach(url => {
+            f.refImages.forEach(refData => {
+                // Handle both old format (string) and new format (object with src/thumb)
+                const src = typeof refData === 'string' ? refData : (refData?.src || '');
+                const thumb = typeof refData === 'string' ? refData : (refData?.thumb || refData?.src || '');
+                
+                if (!src || refMap.has(src)) return; // Skip duplicates
+                refMap.set(src, thumb);
+                
                 const wrap = document.createElement('div');
                 wrap.className = 'group relative overflow-hidden rounded-2xl bg-gray-100 dark:bg-slate-800 aspect-square shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200/50 dark:border-slate-700/50';
                 
                 const img = document.createElement('img');
-                img.src = url;
+                img.src = thumb; // Use thumbnail for display
                 img.alt = 'Reference';
                 img.className = 'w-full h-full object-cover group-hover:scale-110 transition-transform duration-300';
                 
@@ -416,9 +425,9 @@ async function openMyImagesModal() {
                 wrap.appendChild(overlay);
                 myRefsGrid.appendChild(wrap);
 
-                // Open reference image in a new tab when clicked
+                // Open original reference image in a new tab when clicked
                 wrap.addEventListener('click', () => {
-                    try { window.open(url, '_blank'); } catch (_) {}
+                    try { window.open(src, '_blank'); } catch (_) {}
                 });
             });
         }

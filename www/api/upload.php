@@ -101,28 +101,119 @@ $imageNumber = isset($data['imageNumber']) ? intval($data['imageNumber']) : 1;
 //   "iVBORw0KGgo..." OR "data:image/png;base64,iVBORw0KGgo..."
 // ]
 if (!empty($batchId) && $imageNumber === 1 && isset($data['refImages']) && is_array($data['refImages']) && count($data['refImages']) > 0) {
+    require_once IMB_SRC_DIR . '/db.php';
+    
     $safeBatchId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
     $refsRoot = $imageDir . '/refs';
-    $refsDir = $refsRoot . '/' . $safeBatchId;
-    if (!is_dir($refsDir)) {
-        if (!is_dir($refsRoot)) mkdir($refsRoot, 0777, true);
-        mkdir($refsDir, 0777, true);
-        $idx = 1;
-        foreach ($data['refImages'] as $refImg) {
-            if (!is_string($refImg) || $refImg === '') continue;
-            $ext = 'png';
-            $payload = $refImg;
-            if (preg_match('/^data:image\/(\w+);base64,/', $refImg, $m)) {
-                $mimeExt = strtolower($m[1]);
-                $ext = $mimeExt === 'jpeg' ? 'jpg' : $mimeExt;
-                $payload = substr($refImg, strpos($refImg, ',') + 1);
-            }
-            $decoded = base64_decode($payload);
-            if ($decoded === false) continue;
-            $refFilename = sprintf('ref_%d.%s', $idx, $ext);
-            file_put_contents($refsDir . '/' . $refFilename, $decoded);
-            $idx++;
+    $refsThumbsRoot = $imageDir . '/refs/thumbs';
+    
+    if (!is_dir($refsRoot)) mkdir($refsRoot, 0777, true);
+    if (!is_dir($refsThumbsRoot)) mkdir($refsThumbsRoot, 0777, true);
+    
+    $position = 1;
+    foreach ($data['refImages'] as $refImg) {
+        if (!is_string($refImg) || $refImg === '') continue;
+        
+        $ext = 'png';
+        $payload = $refImg;
+        if (preg_match('/^data:image\/(\w+);base64,/', $refImg, $m)) {
+            $mimeExt = strtolower($m[1]);
+            $ext = $mimeExt === 'jpeg' ? 'jpg' : $mimeExt;
+            $payload = substr($refImg, strpos($refImg, ',') + 1);
         }
+        $decoded = base64_decode($payload);
+        if ($decoded === false) continue;
+        
+        // Calculate file hash (MD5)
+        $fileHash = md5($decoded);
+        $fileSize = strlen($decoded);
+        
+        // Check if this image already exists in DB
+        $existing = db_row('SELECT id, file_path, thumb_path FROM reference_images WHERE file_hash = ?', [$fileHash]);
+        
+        if ($existing) {
+            // Image already exists, just link it to this batch
+            $refImageId = $existing['id'];
+        } else {
+            // New image, save it and create DB entry
+            $refFilename = $fileHash . '.' . $ext;
+            $refFullPath = $refsRoot . '/' . $refFilename;
+            $refThumbPath = $refsThumbsRoot . '/' . $refFilename;
+            
+            file_put_contents($refFullPath, $decoded);
+            
+            // --- GENERATE THUMBNAIL FOR REFERENCE IMAGE ---
+            $refImg = @imagecreatefromstring($decoded);
+            $refW = null;
+            $refH = null;
+            if ($refImg) {
+                // Fix EXIF orientation if present
+                if (function_exists('exif_read_data')) {
+                    $exif = @exif_read_data('data://image/jpeg;base64,' . base64_encode($decoded));
+                    if ($exif && isset($exif['Orientation'])) {
+                        switch ($exif['Orientation']) {
+                            case 3:
+                                $refImg = imagerotate($refImg, 180, 0);
+                                break;
+                            case 6:
+                                $refImg = imagerotate($refImg, -90, 0);
+                                break;
+                            case 8:
+                                $refImg = imagerotate($refImg, 90, 0);
+                                break;
+                        }
+                    }
+                }
+                
+                $refW = imagesx($refImg);
+                $refH = imagesy($refImg);
+                
+                if ($refW > 0 && $refH > 0) {
+                    $refAspectRatio = $refW / $refH;
+                    $maxDimension = 400; // Kleinere Thumbnails für Referenzbilder
+                    if ($refAspectRatio >= 1) {
+                        // Landscape oder Quadrat
+                        $refThumbW = $maxDimension;
+                        $refThumbH = max(1, (int)round($refThumbW / $refAspectRatio));
+                    } else {
+                        // Portrait
+                        $refThumbH = $maxDimension;
+                        $refThumbW = max(1, (int)round($refThumbH * $refAspectRatio));
+                    }
+                    
+                    $refThumbImg = imagecreatetruecolor($refThumbW, $refThumbH);
+                    imagealphablending($refThumbImg, false);
+                    imagesavealpha($refThumbImg, true);
+                    imagecopyresampled($refThumbImg, $refImg, 0, 0, 0, 0, $refThumbW, $refThumbH, $refW, $refH);
+                    imagepng($refThumbImg, $refThumbPath);
+                    imagedestroy($refThumbImg);
+                }
+                imagedestroy($refImg);
+            }
+            
+            // Insert into reference_images table
+            db_exec(
+                'INSERT INTO reference_images (file_hash, file_path, thumb_path, file_size, width, height) VALUES (?, ?, ?, ?, ?, ?)',
+                [
+                    $fileHash,
+                    'images/refs/' . $refFilename,
+                    'images/refs/thumbs/' . $refFilename,
+                    $fileSize,
+                    $refW,
+                    $refH
+                ]
+            );
+            
+            $refImageId = (int)db()->lastInsertId();
+        }
+        
+        // Link reference image to this batch
+        db_exec(
+            'INSERT OR IGNORE INTO batch_references (batch_id, reference_image_id, position) VALUES (?, ?, ?)',
+            [$safeBatchId, $refImageId, $position]
+        );
+        
+        $position++;
     }
 }
 
@@ -229,35 +320,60 @@ if ($batchParam !== null) {
     $isMainImage = $rowMain === null ? 1 : 0;
 }
 
+// Prepare width/height for DB insert
+$dbWidth = isset($srcW) ? (int)$srcW : null;
+$dbHeight = isset($srcH) ? (int)$srcH : null;
+
 try {
-    db_exec(
-        'INSERT INTO generations (
-            created_at, mode, batch_id, image_number, user_id, filename, prompt, quality, private,
-            ref_image_count, width, height, aspect_class, is_main_image, deleted,
-            cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [
-            $timestamp,
-            $mode,
-            $batchParam,
-            $imageNumber,
-            $user_id,
-            $filename,
-            $sanitized_prompt,
-            $quality,
-            0,
-            $ref_image_count,
-            isset($srcW) ? $srcW : null,
-            isset($srcH) ? $srcH : null,
-            $aspect_class,
-            $isMainImage,
-            0,
-            $imageCost,
-            $refCost,
-            $totalCost,
-            $pricingSchema
-        ]
-    );
+    db_tx(function () use ($batchParam, $imageNumber, $user_id, $sanitized_prompt, $quality, $aspect_class, $mode, $timestamp, $ref_image_count, $refCost, $imageCost, $totalCost, $pricingSchema, $filename, $dbWidth, $dbHeight, $isMainImage) {
+        // Create or update batch entry (once per batch)
+        if ($batchParam !== null) {
+            $batchExists = db_row('SELECT id FROM batches WHERE batch_id = ?', [$batchParam]);
+            
+            if (!$batchExists && $imageNumber === 1) {
+                // First image: create batch with ref costs
+                db_exec(
+                    'INSERT INTO batches (batch_id, prompt, quality, aspect_class, mode, user_id, private, created_at, cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [$batchParam, $sanitized_prompt, $quality, $aspect_class, $mode, $user_id, 0, $timestamp, $imageCost, $refCost, $totalCost, $pricingSchema]
+                );
+            } else {
+                // Subsequent images: accumulate only image costs
+                db_exec(
+                    'UPDATE batches SET 
+                        cost_image_cents = cost_image_cents + ?,
+                        cost_total_cents = cost_total_cents + ?
+                     WHERE batch_id = ?',
+                    [$imageCost, $imageCost, $batchParam]
+                );
+            }
+        } else {
+            // Standalone image: create pseudo-batch
+            $pseudoBatchId = 'single_' . uniqid();
+            db_exec(
+                'INSERT INTO batches (batch_id, prompt, quality, aspect_class, mode, user_id, private, created_at, cost_image_cents, cost_ref_cents, cost_total_cents, pricing_schema)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$pseudoBatchId, $sanitized_prompt, $quality, $aspect_class, $mode, $user_id, 0, $timestamp, $imageCost, $refCost, $totalCost, $pricingSchema]
+            );
+            $batchParam = $pseudoBatchId;
+        }
+        
+        // Insert generation (simplified - only image-specific data)
+        db_exec(
+            'INSERT INTO generations (batch_id, image_number, filename, width, height, is_main_image, deleted)
+             VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+                $batchParam,
+                $imageNumber,
+                $filename,
+                $dbWidth,
+                $dbHeight,
+                $isMainImage,
+                0
+            ]
+        );
+    });
+    
     echo json_encode(['success' => true]);
 } catch (Throwable $e) {
     http_response_code(500);

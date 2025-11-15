@@ -19,9 +19,22 @@ if ($row === null) {
 }
 $uid = intval($row['id']);
 
-$tot = db_row('SELECT COUNT(*) AS cnt, COALESCE(SUM(cost_total_cents),0) AS cost FROM generations WHERE user_id = ?', [$uid]);
+// Count images from generations, costs from batches (per-batch data)
+$imageCount = db_row('
+    SELECT COUNT(*) AS cnt 
+    FROM generations g 
+    JOIN batches b ON b.batch_id = g.batch_id 
+    WHERE b.user_id = ?
+', [$uid]);
+
+$batchCosts = db_row('
+    SELECT COALESCE(SUM(cost_total_cents), 0) AS cost 
+    FROM batches 
+    WHERE user_id = ?
+', [$uid]);
+
 echo json_encode([
-    'totalImages' => intval($tot['cnt']),
-    'totalCosts' => intval($tot['cost'])
+    'totalImages' => intval($imageCount['cnt']),
+    'totalCosts' => intval($batchCosts['cost'])
 ]);
 ?>

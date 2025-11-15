@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0]
+## [1.5.0] - 2025-11-17
+
+This is the final release of what will now be referred to as "ImageBuddies Classic". New features will only be implemented in the Pro-Version, that I am currently working on. Bugs found in this version will be fixed.
+
+### Added
+- **Reference Image Deduplication System**
+  - Complete architectural overhaul of reference image storage to eliminate duplicates and reduce storage requirements
+  - **New Database Schema:**
+    - `reference_images` table: Stores unique reference images identified by MD5 hash
+    - `batch_references` table: Links batches to reference images (many-to-many relationship)
+  - **Hash-Based Deduplication:** Reference images are now stored once and shared across multiple batches that use the same image
+  - **Centralized Storage:** Moved from batch-specific directories (`images/refs/{batchId}/`) to central storage (`images/refs/` and `images/refs/thumbs/`)
+  - **Automatic Thumbnail Generation:** All reference images get optimized thumbnails (400px max dimension) with EXIF orientation correction
+  - **Database-Driven Retrieval:** Reference images are fetched from database with fallback to filesystem for backward compatibility
+  - **Migration Tool:** Web-based migration at `/api/migrations.php` with:
+    - Dry-run mode showing duplicate detection and storage savings
+    - Visual preview of duplicate image groups
+    - Non-destructive migration (preserves original files)
+    - Automatic duplicate detection and removal during migration
+  - **Storage Savings:** Typical reduction of 40-70% in reference image storage for active users
+  - **API Updates:** `upload.php` and `list_images.php` seamlessly handle both old and new storage systems
+  - **Full Backward Compatibility:** Existing installations continue working; migration is optional but recommended
+
+- **Batches Table Migration**
+  - Introduced dedicated `batches` table to eliminate redundant data storage
+  - Batch-level metadata (prompt, quality, aspect_class, mode, user_id, private, archived, deleted, costs) now stored once per batch instead of per image
+  - Migration available via `/api/migrations.php` with dry-run preview and detailed statistics
+  - Reduces data redundancy by up to 75% for batch metadata
+  - Improves performance for batch-level operations (archive, delete, privacy)
+  - Automatic creation of pseudo-batches for standalone images without batch_id
+  - Full backward compatibility: works with both new installations (via setup.php) and existing installations (via migration)
+  - Migration tracks batches with single images vs. multiple images for transparency
+
+### Changed
+- **Unified Migration Center**
+  - Bundled all previous migrations to `migrations.php`.
+  - Centralized location for all database migrations (main image flags, reference deduplication, batches, thumbnails)
+  - Each migration now offers dry-run mode with detailed preview and statistics
+  - Improved migration status detection and user feedback
+  - Reference images migration now shows status and action buttons on start page
+  - All migrations now properly mark themselves as completed in settings
+
+## [1.2.0] - 2025-11-07
 
 ### Added
 - **Centralized Pricing Management**

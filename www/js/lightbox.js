@@ -161,12 +161,16 @@ export function initLightbox({
             refsRow.appendChild(refsLabel);
             const refsWrapper = document.createElement('div');
             refsWrapper.className = 'flex items-center gap-2 overflow-x-auto';
-            refImages.forEach((src, idx) => {
+            refImages.forEach((refData, idx) => {
+                // Handle both old format (string) and new format (object with src/thumb)
+                const src = typeof refData === 'string' ? refData : (refData?.src || '');
+                const thumb = typeof refData === 'string' ? refData : (refData?.thumb || refData?.src || '');
+                
                 const r = document.createElement('img');
-                r.src = src;
+                r.src = thumb; // Use thumbnail for display
                 r.alt = translate('altText.referenceImage');
                 r.className = 'w-14 h-14 object-cover rounded-lg border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition-opacity';
-                r.onclick = () => window.open(src, '_blank');
+                r.onclick = () => window.open(src, '_blank'); // Open original in new tab
                 refsWrapper.appendChild(r);
             });
             refsRow.appendChild(refsWrapper);

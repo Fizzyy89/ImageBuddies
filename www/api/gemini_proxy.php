@@ -104,7 +104,7 @@ if ($endpoint === 'edit') {
             ]
         ],
         'generationConfig' => [
-            'responseModalities' => ['IMAGE']
+            'responseModalities' => ['TEXT', 'IMAGE']
         ]
     ];
 

@@ -20,26 +20,24 @@ $currentUser = $_SESSION['user'];
 if (!empty($data['batchId'])) {
     $batchId = $data['batchId'];
     if (!$isAdmin) {
-        $rows = db_rows('SELECT u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.batch_id = ?', [$batchId]);
-        if (empty($rows)) {
+        $batch = db_row('SELECT u.username AS owner FROM batches b JOIN users u ON u.id = b.user_id WHERE b.batch_id = ?', [$batchId]);
+        if (!$batch) {
             http_response_code(404);
             echo json_encode(['error_key' => 'error.archive.batchNotFound']);
             exit;
         }
-        foreach ($rows as $r) {
-            if ($r['owner'] !== $currentUser) {
-                http_response_code(403);
-                echo json_encode(['error_key' => 'error.archive.noPermission']);
-                exit;
-            }
+        if ($batch['owner'] !== $currentUser) {
+            http_response_code(403);
+            echo json_encode(['error_key' => 'error.archive.noPermission']);
+            exit;
         }
     }
-    db_exec('UPDATE generations SET archived = ? WHERE batch_id = ?', [$archived, $batchId]);
+    db_exec('UPDATE batches SET archived = ? WHERE batch_id = ?', [$archived, $batchId]);
     echo json_encode(['success' => true]);
     exit;
 }
 
-// Single update by filename
+// Single update by filename (archive entire batch via image)
 $filename = $data['filename'] ?? '';
 if ($filename === '') {
     http_response_code(400);
@@ -48,7 +46,7 @@ if ($filename === '') {
 }
 $basename = basename($filename);
 
-$row = db_row('SELECT g.id, u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.filename = ?', [$basename]);
+$row = db_row('SELECT g.batch_id, u.username AS owner FROM generations g JOIN batches b ON b.batch_id = g.batch_id JOIN users u ON u.id = b.user_id WHERE g.filename = ?', [$basename]);
 if ($row === null) {
     http_response_code(404);
     echo json_encode(['error_key' => 'error.archive.imageNotFound']);
@@ -60,7 +58,7 @@ if (!$isAdmin && $row['owner'] !== $currentUser) {
     exit;
 }
 
-db_exec('UPDATE generations SET archived = ? WHERE id = ?', [$archived, $row['id']]);
+db_exec('UPDATE batches SET archived = ? WHERE batch_id = ?', [$archived, $row['batch_id']]);
 echo json_encode(['success' => true]);
 ?>
 

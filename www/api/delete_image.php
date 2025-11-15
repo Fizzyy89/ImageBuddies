@@ -19,18 +19,16 @@ if (isset($data['batchId'])) {
     $batchId = $data['batchId'];
     // Ownership check
     if (!$isAdmin) {
-        $rows = db_rows('SELECT g.id, g.filename, u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.batch_id = ?', [$batchId]);
-        if (empty($rows)) {
+        $batch = db_row('SELECT u.username AS owner FROM batches b JOIN users u ON u.id = b.user_id WHERE b.batch_id = ?', [$batchId]);
+        if (!$batch) {
             http_response_code(404);
             echo json_encode(['error_key' => 'error.deleteImage.logNotFound']);
             exit;
         }
-        foreach ($rows as $r) {
-            if ($r['owner'] !== $currentUser) {
-                http_response_code(403);
-                echo json_encode(['error_key' => 'error.deleteImage.noPermission']);
-                exit;
-            }
+        if ($batch['owner'] !== $currentUser) {
+            http_response_code(403);
+            echo json_encode(['error_key' => 'error.deleteImage.noPermission']);
+            exit;
         }
     }
 
@@ -44,8 +42,13 @@ if (isset($data['batchId'])) {
         if (file_exists($thumbPath)) @unlink($thumbPath);
         $deletedFiles[] = $basename;
     }
-    db_exec('UPDATE generations SET deleted = 1, is_main_image = 0 WHERE batch_id = ?', [$batchId]);
-    // Delete batch reference folder
+    
+    db_tx(function () use ($batchId) {
+        db_exec('UPDATE batches SET deleted = 1 WHERE batch_id = ?', [$batchId]);
+        db_exec('UPDATE generations SET deleted = 1, is_main_image = 0 WHERE batch_id = ?', [$batchId]);
+    });
+    
+    // Delete batch reference folder (legacy for old filesystem-based refs)
     $safeBatch = preg_replace('/[^a-zA-Z0-9_\-]/', '', $batchId);
     $refsDir = IMB_IMAGE_DIR . '/refs/' . $safeBatch;
     if (is_dir($refsDir)) {
@@ -78,7 +81,7 @@ if (!preg_match('/^image_[0-9T\-]+\.png$/', $basename)) {
 }
 
 // Fetch metadata for permission and follow-up updates
-$row = db_row('SELECT g.id, g.batch_id, g.is_main_image, u.username AS owner FROM generations g JOIN users u ON u.id = g.user_id WHERE g.filename = ?', [$basename]);
+$row = db_row('SELECT g.id, g.batch_id, g.is_main_image, u.username AS owner FROM generations g JOIN batches b ON b.batch_id = g.batch_id JOIN users u ON u.id = b.user_id WHERE g.filename = ?', [$basename]);
 if ($row === null) {
     http_response_code(404);
     echo json_encode(['error_key' => 'error.deleteImage.logNotFound']);

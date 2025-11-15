@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL UNIQUE,
                     password_hash TEXT NOT NULL,
-                    role TEXT NOT NULL CHECK (role IN (\'admin\',\'user\')),
+                    role TEXT NOT NULL CHECK (role IN (\'admin\',\'superuser\',\'user\')),
                     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
                 );'
             );
@@ -84,42 +84,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );'
             );
 
+            // Batches table MUST be created before generations (due to foreign key)
             db()->exec(
-                'CREATE TABLE IF NOT EXISTS generations (
+                'CREATE TABLE IF NOT EXISTS batches (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    created_at TEXT NOT NULL,
-                    mode TEXT NOT NULL CHECK (mode IN (\'openai\',\'gemini\')),
-                    batch_id TEXT,
-                    image_number INTEGER NOT NULL DEFAULT 1,
-                    user_id INTEGER NOT NULL,
-                    filename TEXT,
-                    prompt TEXT,
+                    batch_id TEXT NOT NULL UNIQUE,
+                    prompt TEXT NOT NULL,
                     quality TEXT,
-                    private INTEGER NOT NULL DEFAULT 0,
-                    ref_image_count INTEGER NOT NULL DEFAULT 0,
-                    width INTEGER,
-                    height INTEGER,
                     aspect_class TEXT,
-                    is_main_image INTEGER NOT NULL DEFAULT 0,
-                    deleted INTEGER NOT NULL DEFAULT 0,
+                    mode TEXT NOT NULL CHECK (mode IN (\'openai\',\'gemini\')),
+                    user_id INTEGER NOT NULL,
+                    private INTEGER NOT NULL DEFAULT 0,
                     archived INTEGER NOT NULL DEFAULT 0,
+                    deleted INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
                     cost_image_cents INTEGER NOT NULL DEFAULT 0,
                     cost_ref_cents INTEGER NOT NULL DEFAULT 0,
                     cost_total_cents INTEGER NOT NULL DEFAULT 0,
                     pricing_schema TEXT NOT NULL DEFAULT "2025-10",
-                    UNIQUE(filename),
-                    UNIQUE(batch_id, image_number),
-                    FOREIGN KEY(user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
                 );'
             );
 
-            db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_visible ON generations (deleted, private, created_at DESC)');
-            db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_user ON generations (user_id, created_at DESC)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_batches_batch_id ON batches (batch_id)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_batches_user ON batches (user_id, created_at DESC)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_batches_visibility ON batches (deleted, private, archived, created_at DESC)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_batches_archived ON batches (archived, created_at DESC)');
+
+            // Slim generations table - batch-level metadata lives in batches table
+            db()->exec(
+                'CREATE TABLE IF NOT EXISTS generations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id TEXT NOT NULL,
+                    image_number INTEGER NOT NULL DEFAULT 1,
+                    filename TEXT NOT NULL,
+                    width INTEGER,
+                    height INTEGER,
+                    is_main_image INTEGER NOT NULL DEFAULT 0,
+                    deleted INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE(filename),
+                    UNIQUE(batch_id, image_number),
+                    FOREIGN KEY (batch_id) REFERENCES batches(batch_id) ON DELETE CASCADE
+                );'
+            );
+
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_batch ON generations (batch_id)');
-            db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_archived ON generations (archived, created_at DESC)');
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_main_flag ON generations (is_main_image)');
             db()->exec('CREATE INDEX IF NOT EXISTS idx_generations_batch_main_flag ON generations (batch_id, is_main_image)');
             db()->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_generations_batch_main_unique ON generations (batch_id) WHERE batch_id IS NOT NULL AND is_main_image = 1');
+
+            // Reference images deduplication system
+            db()->exec(
+                'CREATE TABLE IF NOT EXISTS reference_images (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_hash TEXT NOT NULL UNIQUE,
+                    file_path TEXT NOT NULL,
+                    thumb_path TEXT NOT NULL,
+                    file_size INTEGER,
+                    width INTEGER,
+                    height INTEGER,
+                    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+                );'
+            );
+
+            db()->exec(
+                'CREATE TABLE IF NOT EXISTS batch_references (
+                    batch_id TEXT NOT NULL,
+                    reference_image_id INTEGER NOT NULL,
+                    position INTEGER NOT NULL,
+                    FOREIGN KEY (reference_image_id) REFERENCES reference_images(id) ON DELETE CASCADE,
+                    PRIMARY KEY (batch_id, position)
+                );'
+            );
+
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_reference_images_hash ON reference_images (file_hash)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_batch_references_batch ON batch_references (batch_id)');
+            db()->exec('CREATE INDEX IF NOT EXISTS idx_batch_references_ref ON batch_references (reference_image_id)');
         });
 
     // Load the selected locale file for default customization texts
@@ -183,6 +223,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db_exec('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', [
                 'migration.is_main_image',
                 'done'
+            ]);
+
+            // Mark batches migration as pending for new installs (will be auto-marked done if no data)
+            db_exec('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING', [
+                'migration.batches',
+                'pending'
             ]);
 
             // Store OpenAI key encrypted in DB (optional, may be empty)

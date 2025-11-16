@@ -1,4 +1,4 @@
-# ImageBuddies - Self-Hosted OpenAI Image Generation UI
+# ImageBuddies - Self-Hosted Image Generation UI
 
 ImageBuddies is a user-friendly web interface that allows groups of friends or small teams to easily generate images using OpenAI's latest `gpt-image-1` image generation model. Recently, a mode for Google's `Nano Banana` model was also added. It's designed to be self-hosted on any webspace with PHP support and uses a self-contained SQLite database that is created automatically on first run (no external DB required).
 
